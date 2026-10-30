@@ -1,0 +1,3425 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Advance Analyzer</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🎯</text></svg>"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <script src="./offline-charts.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <style>
+      :root {
+        --bg: #0f172a;
+        --card-base: 30, 41, 59;
+        --card-opacity: 1;
+        --card: rgba(var(--card-base), var(--card-opacity));
+        --border: #334155;
+        --text: #f1f5f9;
+        --muted: #94a3b8;
+        --accent: #38bdf8;
+        --green: #10b981;
+        --red: #ef4444;
+        --yellow: #f59e0b;
+        --purple: #a855f7;
+      }
+      [data-theme="light"] {
+        --bg: #f8fafc;
+        --card-base: 255, 255, 255;
+        --border: #e2e8f0;
+        --text: #0f172a;
+        --muted: #64748b;
+      }
+      body {
+        background: var(--bg);
+        color: var(--text);
+        font-family: "Inter", sans-serif;
+        margin: 0;
+        padding: 0;
+        transition:
+          background 0.3s,
+          color 0.3s;
+      }
+
+      /* --- TOP HEADER BAR --- */
+      .top-bar {
+        background: var(--card);
+        border-bottom: 1px solid var(--border);
+        padding: 12px 25px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        position: sticky;
+        top: 0;
+        z-index: 100;
+        transition:
+          background 0.3s,
+          border 0.3s;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      }
+      .top-bar-controls {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+      }
+      .top-bar select {
+        width: auto;
+        padding: 8px 12px;
+        font-weight: 600;
+        cursor: pointer;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--bg);
+        color: var(--text);
+      }
+      .top-bar-status {
+        font-weight: 700;
+        color: var(--accent);
+        font-size: 0.95rem;
+        background: var(--bg);
+        padding: 8px 15px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+      .theme-btn {
+        background: transparent;
+        border: none;
+        font-size: 1.5rem;
+        cursor: pointer;
+        padding: 5px;
+        transition: transform 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .theme-btn:hover {
+        transform: scale(1.15);
+      }
+
+      @media (max-width: 600px) {
+        .top-bar {
+          flex-direction: column;
+          gap: 15px;
+          padding: 15px;
+        }
+        .top-bar-controls {
+          flex-wrap: wrap;
+          justify-content: center;
+        }
+      }
+
+      /* LAYOUT */
+      .container {
+        max-width: 1400px;
+        margin: 30px auto;
+        padding: 0 20px;
+        display: grid;
+        grid-template-columns: 1fr 420px;
+        gap: 20px;
+      }
+      @media (max-width: 1100px) {
+        .container {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        padding: 20px;
+        margin-bottom: 20px;
+        transition: 0.3s;
+      }
+      h2 {
+        margin-top: 0;
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 10px;
+        font-size: 1.1rem;
+        color: var(--text);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .dash-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: var(--card);
+        padding: 15px 20px;
+        border-radius: 12px;
+        border: 1px solid var(--border);
+        margin-bottom: 20px;
+        flex-wrap: wrap;
+        gap: 15px;
+      }
+      .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+      .stat-box {
+        background: rgba(15, 23, 42, 0.05);
+        padding: 12px 10px;
+        border-radius: 8px;
+        border: 1px solid var(--border);
+        text-align: center;
+      }
+      [data-theme="dark"] .stat-box {
+        background: rgba(15, 23, 42, 0.3);
+      }
+      .stat-val {
+        font-size: 1.6rem;
+        font-weight: 800;
+        color: var(--accent);
+      }
+      .stat-lbl {
+        font-size: 0.7rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 5px;
+      }
+
+      /* Dynamic Sectional Grids */
+      .sec-stat-box {
+        background: rgba(15, 23, 42, 0.05);
+        border: 1px solid var(--border);
+        border-top: 3px solid;
+        border-radius: 8px;
+        padding: 15px 10px;
+        text-align: center;
+        min-width: 120px;
+      }
+      [data-theme="dark"] .sec-stat-box {
+        background: rgba(15, 23, 42, 0.3);
+      }
+      .sec-title {
+        font-weight: 800;
+        margin-bottom: 12px;
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+      .sec-scores {
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+      }
+      .sec-scores > div {
+        display: flex;
+        flex-direction: column;
+      }
+      .sec-val {
+        font-size: 1.4rem;
+        font-weight: bold;
+        color: var(--text);
+      }
+      .sec-lbl {
+        font-size: 0.65rem;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-top: 4px;
+      }
+
+      .input-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+      .form-group label {
+        display: block;
+        font-size: 0.75rem;
+        color: var(--muted);
+        margin-bottom: 5px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      input,
+      select {
+        width: 100%;
+        padding: 10px;
+        background: var(--bg);
+        border: 1px solid var(--border);
+        color: var(--text);
+        border-radius: 6px;
+        box-sizing: border-box;
+        transition: 0.3s;
+      }
+      input:focus,
+      select:focus {
+        outline: 1px solid var(--accent);
+      }
+
+      .score-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 15px;
+        font-size: 0.85rem;
+      }
+      .score-table th {
+        color: var(--muted);
+        font-weight: 600;
+        text-align: center;
+        padding-bottom: 8px;
+      }
+      .score-table td {
+        padding: 4px;
+      }
+      .score-table input {
+        text-align: center;
+        padding: 8px;
+        font-weight: bold;
+      }
+      .row-lbl {
+        font-weight: 600;
+        color: var(--text);
+      }
+      .qualifying-badge {
+        font-size: 0.6rem;
+        background: var(--border);
+        padding: 2px 5px;
+        border-radius: 4px;
+        margin-left: 5px;
+        color: var(--muted);
+        vertical-align: middle;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 12px;
+        background: var(--accent);
+        color: #fff;
+        border: none;
+        border-radius: 6px;
+        font-weight: 800;
+        cursor: pointer;
+        transition: 0.2s;
+      }
+      .btn:hover {
+        filter: brightness(1.1);
+      }
+      .btn-cancel {
+        background: var(--border);
+        color: var(--text);
+      }
+
+      .action-row {
+        display: flex;
+        gap: 15px;
+        margin-top: 15px;
+        margin-bottom: 25px;
+      }
+      .action-row .live-score {
+        flex: 1;
+        margin: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+        font-weight: bold;
+        color: var(--green);
+        background: rgba(16, 185, 129, 0.1);
+        border-radius: 6px;
+        border: 1px dashed var(--green);
+        flex-direction: column;
+        line-height: 1.2;
+        padding: 5px;
+      }
+      .action-row .btn {
+        flex: 1;
+        width: auto;
+      }
+
+      .chart-wrapper {
+        position: relative;
+        height: 280px;
+        width: 100%;
+      }
+      .dual-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+      }
+
+      /* RESTORED TIME VISUALS */
+      .time-numeric-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 15px;
+        margin-top: 15px;
+      }
+      .time-badge {
+        background: rgba(15, 23, 42, 0.05);
+        border: 1px solid var(--border);
+        padding: 15px 10px;
+        border-radius: 8px;
+        text-align: center;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+      }
+      [data-theme="dark"] .time-badge {
+        background: rgba(15, 23, 42, 0.3);
+      }
+      .time-badge span {
+        display: block;
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: var(--muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+      }
+      .time-val-text {
+        font-size: 2.2rem;
+        font-weight: 800;
+        line-height: 1;
+        margin-top: 2px;
+      }
+
+      /* RESTORED ACCURACY VISUALS */
+      .acc-skip-row {
+        margin-bottom: 15px;
+      }
+      .as-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-end;
+        font-size: 0.9rem;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .as-stats {
+        font-size: 0.8rem;
+        color: var(--muted);
+        display: flex;
+        gap: 12px;
+        font-weight: normal;
+      }
+      .as-stats strong {
+        color: var(--text);
+      }
+      .progress-bg {
+        background: rgba(15, 23, 42, 0.1);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        height: 8px;
+        width: 100%;
+        overflow: hidden;
+      }
+      [data-theme="dark"] .progress-bg {
+        background: rgba(15, 23, 42, 0.6);
+      }
+      .progress-fill {
+        height: 100%;
+        border-radius: 10px;
+        transition: width 0.6s ease;
+      }
+
+      .hist-item {
+        padding: 12px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .hist-item:last-child {
+        border: none;
+      }
+
+      /* AI UPLOAD BOX */
+      .ai-upload-box {
+        background: linear-gradient(
+          145deg,
+          rgba(56, 189, 248, 0.05),
+          rgba(168, 85, 247, 0.05)
+        );
+        border: 1px dashed var(--accent);
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+        transition: 0.3s;
+      }
+      [data-theme="dark"] .ai-upload-box {
+        background: linear-gradient(
+          145deg,
+          rgba(56, 189, 248, 0.1),
+          rgba(168, 85, 247, 0.1)
+        );
+      }
+      .ai-upload-box:hover {
+        border-style: solid;
+      }
+      .ai-btn {
+        background: linear-gradient(90deg, var(--accent), var(--purple));
+        color: white;
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85rem;
+        font-weight: bold;
+        cursor: pointer;
+        display: inline-block;
+      }
+
+      /* CONFIG & SETTINGS MENU */
+      .settings-group {
+        background: rgba(15, 23, 42, 0.05);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        margin-bottom: 10px;
+      }
+      [data-theme="dark"] .settings-group {
+        background: rgba(15, 23, 42, 0.3);
+      }
+      .settings-header {
+        padding: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        list-style: none;
+        display: flex;
+        justify-content: space-between;
+        color: var(--text);
+        font-size: 0.9rem;
+      }
+      .settings-header::-webkit-details-marker {
+        display: none;
+      }
+      .settings-content {
+        padding: 15px;
+        border-top: 1px solid var(--border);
+      }
+      .cfg-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+        margin-top: 10px;
+      }
+      .cfg-table th {
+        text-align: left;
+        padding: 5px;
+        color: var(--muted);
+        border-bottom: 1px solid var(--border);
+      }
+      .cfg-table td {
+        padding: 8px 5px;
+        border-bottom: 1px solid var(--border);
+      }
+
+      /* MODAL STYLES */
+      .modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(15, 23, 42, 0.85);
+        backdrop-filter: blur(4px);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+      [data-theme="light"] .modal-overlay {
+        background: rgba(255, 255, 255, 0.85);
+      }
+      .modal-content {
+        background: var(--card);
+        padding: 30px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 1000px;
+        max-height: 90vh;
+        overflow-y: auto;
+        position: relative;
+        border: 1px solid var(--border);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+      }
+      .modal-close {
+        position: absolute;
+        top: 20px;
+        right: 25px;
+        font-size: 1.8rem;
+        cursor: pointer;
+        color: var(--muted);
+        transition: 0.2s;
+      }
+      .modal-close:hover {
+        color: var(--text);
+      }
+      .modal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+      .speedometer-box {
+        background: var(--bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        padding: 15px;
+        text-align: center;
+      }
+
+      .action-btns-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .btn-sm {
+        padding: 8px;
+        font-size: 0.8rem;
+        border-radius: 4px;
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--accent);
+        cursor: pointer;
+        transition: 0.2s;
+        font-weight: 600;
+      }
+      .btn-sm:hover {
+        background: var(--accent);
+        color: #fff;
+        border-color: var(--accent);
+      }
+
+      #sectionalWarning {
+        padding: 40px;
+        text-align: center;
+        color: var(--muted);
+        background: var(--bg);
+        border-radius: 8px;
+        border: 1px dashed var(--border);
+        font-size: 1.1rem;
+        font-weight: 500;
+      }
+
+      .form-toggle-header:hover {
+        color: var(--accent) !important;
+      }
+
+/* Sidebar additions: inherit the original application's palette */
+.video-list[hidden]{display:none!important}
+.extra-card{margin-top:20px}.extra-head{cursor:pointer;user-select:none}.extra-body[hidden],.extra-form[hidden]{display:none!important}.extra-list{display:grid;gap:9px;margin:13px 0}.exam-tile{position:relative;overflow:hidden;border:1px solid var(--border);border-radius:9px;padding:12px;background:linear-gradient(90deg,var(--urgency) 0%,transparent 85%);display:flex;align-items:center;justify-content:space-between;gap:8px}.exam-tile:before{content:'';position:absolute;inset:0 auto 0 0;width:5px;background:var(--edge)}.exam-name{font-size:.88rem;font-weight:800;overflow-wrap:anywhere}.exam-date{font-size:.75rem;color:var(--muted);margin-top:4px}.exam-days{font-size:1.65rem;font-weight:800;line-height:1;text-align:right;white-space:nowrap}.exam-days small{font-size:.65rem;display:block;color:var(--muted);font-weight:600;margin-top:5px}.extra-actions{display:flex;gap:5px;align-items:center}.mini-icon{background:none;border:0;color:var(--muted);cursor:pointer;padding:4px}.mini-icon:hover{color:var(--accent)}.extra-form{display:grid;gap:9px;padding:12px;background:var(--bg);border:1px solid var(--border);border-radius:8px;margin-top:10px}.extra-form label{font-size:.75rem;color:var(--muted)}.playlist-tile{border:1px solid var(--border);border-radius:9px;padding:10px}.playlist-top{display:flex;gap:10px;align-items:center}.playlist-thumb{width:92px;aspect-ratio:16/9;object-fit:cover;border-radius:5px;background:var(--bg)}.playlist-name{font-size:.86rem;font-weight:800;overflow-wrap:anywhere}.playlist-meta{font-size:.72rem;color:var(--muted);margin-top:4px}.extra-progress{height:6px;border-radius:9px;background:var(--border);overflow:hidden;margin-top:10px}.extra-progress>div{height:100%;background:var(--green);transition:width .2s}.video-list{display:grid;gap:8px;margin-top:10px;border-top:1px solid var(--border);padding-top:10px;max-height:350px;overflow:auto}.video-row{display:flex;align-items:center;gap:8px;font-size:.78rem}.video-row img{width:72px;aspect-ratio:16/9;object-fit:cover;border-radius:4px}.video-row a{color:var(--text);text-decoration:none;overflow-wrap:anywhere}.video-row a:hover{color:var(--accent)}.video-row input{width:auto;accent-color:var(--green)}.extra-help{font-size:.73rem;color:var(--muted);line-height:1.5;margin:8px 0}.extra-notice{font-size:.75rem;color:var(--yellow);margin-top:8px}.extra-btn{margin-top:8px;width:100%}
+
+/* Video cards adapted to the existing sidebar width and both themes. */
+.study-video-list{gap:9px;max-height:580px;padding-top:12px}
+.study-video-card{display:flex;align-items:center;gap:8px;padding:10px 8px;border:1px solid var(--border);background:var(--bg);border-radius:12px;min-width:0;transition:border-color .2s,background .2s}
+.study-video-card:hover{border-color:var(--accent)}
+.study-drag-decoration{font-size:17px;color:var(--muted);opacity:.6;flex:none;user-select:none}
+.study-complete{appearance:none;-webkit-appearance:none;flex:none;width:22px!important;height:22px!important;border:2px solid var(--muted)!important;border-radius:50%!important;padding:0!important;cursor:pointer;background:transparent!important;position:relative}
+.study-complete:checked{background:var(--green)!important;border-color:var(--green)!important}
+.study-complete:checked:after{content:'✓';color:white;position:absolute;inset:0;text-align:center;line-height:18px;font-weight:800;font-size:14px}
+.study-video-link{display:flex;align-items:center;gap:9px;min-width:0;flex:1;text-decoration:none;color:var(--text)}
+.study-video-link img{width:94px;aspect-ratio:16/9;object-fit:cover;border-radius:7px;flex:none}
+.study-video-detail{min-width:0;flex:1}
+.study-video-title{font-size:.8rem;font-weight:800;line-height:1.4;overflow-wrap:anywhere;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.study-video-channel{font-size:.7rem;color:var(--muted);margin-top:4px;overflow-wrap:anywhere}
+.study-video-actions{display:flex;flex-direction:column;gap:4px;flex:none}
+.study-video-actions .mini-icon{font-size:17px;padding:3px}
+.study-video-card.is-complete .study-video-title{opacity:.62}
+.playlist-bottom-actions{justify-content:flex-end;margin-top:5px}
+@media(max-width:430px){.study-video-card{gap:5px;padding:8px 5px}.study-video-link img{width:72px}.study-video-title{font-size:.72rem}.study-video-channel{font-size:.65rem}.study-video-actions .mini-icon{font-size:14px}}
+
+      /* Compact spacing, consistent with the existing theme. */
+      .top-bar{padding:8px 16px}
+      .top-bar-controls{gap:9px}
+      .container{margin:15px auto;padding:0 12px;gap:14px;grid-template-columns:minmax(0,1fr) 400px}
+      .card{padding:15px;margin-bottom:13px}
+      .sidebar .card{margin-top:12px!important}
+      .dash-header{padding:11px 14px;margin-bottom:13px}
+      .stats-grid{gap:9px;margin-bottom:13px}
+      .stat-box{padding:10px 7px}
+      .dual-grid{gap:12px}
+      .action-row{gap:9px;margin-top:10px;margin-bottom:16px}
+      .study-video-card{padding:8px 7px;gap:7px}
+      .study-video-actions{align-items:center;justify-content:center;gap:7px}
+      .study-video-actions .study-complete{margin:0}
+      .study-video-actions .mini-icon{font-size:16px}
+      .study-video-link img{width:85px}
+      .study-video-title{font-size:.78rem}
+      @media(max-width:1100px){.container{grid-template-columns:1fr}}
+      @media(max-width:600px){.top-bar{padding:9px}.container{padding:0 9px;margin:10px auto}.card{padding:12px}.dual-grid{grid-template-columns:1fr}}
+
+      .history-icon-btn { background:none; border:0; color:var(--accent); padding:2px; cursor:pointer; font-size:1.05rem; line-height:1.2; }
+      .history-icon-btn:hover { color:var(--text); transform:translateY(-1px); }
+      .hist-item { gap:5px; }
+      @media(max-width:540px) { .hist-item { align-items:flex-start; flex-wrap:wrap; } .hist-item > div:last-child { margin-left:auto; } }
+    
+/* V5: dedicated navigation with the original cards and handlers retained */
+.app-shell{max-width:1600px;margin:0 auto;display:grid;grid-template-columns:218px minmax(0,1fr);min-height:calc(100vh - 70px)}
+.app-nav{border-right:1px solid var(--border);background:var(--card);padding:15px 10px;position:sticky;top:65px;height:calc(100vh - 65px);box-sizing:border-box;display:flex;flex-direction:column;gap:5px}
+.app-nav button{display:flex;align-items:center;gap:11px;text-align:left;background:transparent;color:var(--text);border:1px solid transparent;border-radius:8px;padding:12px 11px;font:600 .88rem Inter,sans-serif;cursor:pointer;width:100%}
+.app-nav button:hover{background:var(--bg)}.app-nav button.active{background:rgba(56,189,248,.12);border-color:rgba(56,189,248,.28);color:var(--accent)}
+.app-content{min-width:0;padding:20px 24px}.app-view{display:none;max-width:1350px;margin:auto}.app-view.active{display:block}.app-view>.card{margin-bottom:15px}
+.app-view .extra-card{margin-top:0}.app-view .extra-body{display:block!important}.app-view .extra-head{cursor:default}.app-view .extra-head span{display:none}
+.app-view .chart-wrapper{height:290px}.app-view .study-video-list{max-height:none}.app-view #historyList{max-height:none!important}
+.app-view #settingsContainer{display:block!important}.app-view #scoreFormWrapper{display:block!important}
+.app-view #playlistList{display:grid;grid-template-columns:repeat(auto-fit,minmax(310px,1fr));align-items:start}
+.app-view #countdownList{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr))}
+.app-view #playlistList .study-video-card{min-width:0}
+.app-view .card h2{font-size:1.05rem}.app-view-heading{font-size:1.15rem;font-weight:800;margin:0 0 16px}
+body.nav-layout>.container{display:none!important}
+@media(max-width:800px){.app-shell{grid-template-columns:1fr}.app-nav{height:auto;top:0;position:relative;flex-direction:row;overflow-x:auto;padding:8px;gap:5px;border-right:0;border-bottom:1px solid var(--border)}.app-nav button{white-space:nowrap;width:auto;flex-shrink:0;padding:9px}.app-content{padding:12px}.app-view #playlistList{grid-template-columns:1fr}}
+
+/* V6: compact desktop layouts and two-panel study playlist gallery */
+.app-content{padding:12px 15px}.app-view-heading{margin:0 0 9px;font-size:1.04rem}
+.app-view>.card{margin-bottom:9px}.app-view .card{padding:11px 13px}
+.app-view #playlistList{display:grid;grid-template-columns:minmax(210px,310px) minmax(0,1fr);gap:15px;align-items:start}
+.study-library{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;align-content:start}
+.study-library-tile{font:inherit;text-align:left;color:var(--text);border:1px solid var(--border);background:var(--card);padding:8px;border-radius:10px;cursor:pointer;min-width:0;transition:border-color .15s,background .15s}
+.study-library-tile:hover,.study-library-tile.selected{border-color:var(--accent)}.study-library-tile.selected{background:rgba(56,189,248,.07)}
+.study-library-cover{aspect-ratio:16/9;border-radius:7px;overflow:hidden;background:var(--bg);display:grid;place-items:center;color:var(--muted)}
+.study-library-cover img{width:100%;height:100%;object-fit:cover}.study-library-title{font-weight:800;font-size:.75rem;line-height:1.35;margin-top:7px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.study-library-channel,.study-library-count{font-size:.68rem;color:var(--muted);margin-top:4px}.study-library-tile .extra-progress{margin-top:7px;height:4px}
+.study-viewer{border:1px solid var(--border);border-radius:12px;padding:13px;min-width:0;background:var(--card)}
+.study-viewer-head{display:flex;align-items:start;justify-content:space-between;gap:12px}.study-viewer-title{font-size:1.06rem;font-weight:800;overflow-wrap:anywhere}.study-viewer-meta{font-size:.75rem;color:var(--muted);margin-top:6px}
+.study-viewer-videos{display:grid;gap:7px;margin-top:12px;max-height:calc(100vh - 250px);overflow:auto;padding-right:3px}
+.study-viewer-videos .study-video-card{padding:7px 9px}.study-viewer-videos .study-video-link img{width:124px}.study-viewer-videos .study-video-title{font-size:.82rem;-webkit-line-clamp:2}
+.study-viewer-videos .study-video-actions{margin-left:auto}.study-viewer-videos .study-video-card{background:var(--bg)}
+/* Make the Add Mock form fit on ordinary desktop screens without hiding any field. */
+.app-view[data-view="add"] .card{padding:10px 13px}.app-view[data-view="add"] .input-grid{gap:7px;margin-bottom:8px}
+.app-view[data-view="add"] input,.app-view[data-view="add"] select{padding:7px 8px}
+.app-view[data-view="add"] .form-group label{margin-bottom:3px;font-size:.68rem}
+.app-view[data-view="add"] .score-table{margin-bottom:5px;font-size:.79rem}
+.app-view[data-view="add"] .score-table input{padding:5px}.app-view[data-view="add"] .score-table td{padding:2px}
+.app-view[data-view="add"] .action-row{margin:7px 0 9px}.app-view[data-view="add"] .btn{padding:9px}
+/* Fit analysis modal into the viewport while preserving all section metrics. */
+.modal-overlay{padding:8px;box-sizing:border-box}.modal-content{width:min(98vw,1250px);max-width:1250px;max-height:96vh;padding:14px 18px;box-sizing:border-box}
+.modal-content .modal-grid{grid-template-columns:repeat(auto-fit,minmax(175px,1fr));gap:9px;margin-top:10px}
+.modal-content .speedometer-box{padding:8px}.modal-content .speedometer-box canvas{max-height:145px!important}
+.modal-content #modStatsBg{padding:8px!important;margin-bottom:10px!important;gap:7px!important}
+.modal-content #modNameTitle{font-size:1.2rem!important}.modal-content #modSubTitle{margin-bottom:9px!important;padding-bottom:8px!important}
+@media(max-width:1000px){.app-view #playlistList{grid-template-columns:1fr}.study-library{grid-template-columns:repeat(auto-fit,minmax(145px,1fr))}.study-viewer-videos{max-height:none}}
+@media(max-width:600px){.app-content{padding:9px}.study-viewer-videos .study-video-link img{width:85px}.modal-content{padding:10px;max-height:96vh}.modal-content .modal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* V7: hand-sketched compact Add Mock layout, original theme variables */
+.app-view[data-view="add"] .mock-topline{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:0 0 12px;padding-bottom:11px;border-bottom:1px solid var(--border)}
+.app-view[data-view="add"] .mock-meta-row{grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-bottom:10px}
+.app-view[data-view="add"] .mock-topline label,.app-view[data-view="add"] .mock-meta-row label{font-size:.72rem;font-weight:700}
+.app-view[data-view="add"] .score-table{table-layout:fixed;width:100%;margin:7px 0 9px}
+.app-view[data-view="add"] .score-table th:first-child{width:28%;text-align:left}.app-view[data-view="add"] .score-table th:not(:first-child){width:24%}
+.app-view[data-view="add"] .score-table input{width:100%;min-width:0;box-sizing:border-box}
+.app-view[data-view="add"] .score-table tr[hidden]{display:none}
+.app-view[data-view="add"] .action-row{display:flex;gap:12px;margin:10px 0}
+.app-view[data-view="add"] .action-row .live-score,.app-view[data-view="add"] .action-row .btn{min-height:43px}
+.app-view[data-view="add"] .mock-link-field{display:grid;grid-template-columns:115px minmax(0,1fr);align-items:center;gap:12px;margin-top:10px!important}
+.app-view[data-view="add"] .mock-link-field label{margin:0}
+@media(max-width:620px){.app-view[data-view="add"] .mock-topline{grid-template-columns:1fr 1fr}.app-view[data-view="add"] .mock-meta-row{gap:6px}.app-view[data-view="add"] .mock-link-field{grid-template-columns:1fr;gap:4px}.app-view[data-view="add"] .score-table th:first-child{width:34%}.app-view[data-view="add"] .score-table th:not(:first-child){width:22%}}
+
+
+/* V8: restore V5 typography and sizing in Add Mock and Analysis only. */
+.app-view[data-view="add"] > .app-view-heading,
+.app-view[data-view="add"] .card > h2.form-toggle-header {display:none!important}
+.app-view[data-view="add"] .card{padding:20px!important}
+.app-view[data-view="add"] .mock-topline{gap:16px;margin-bottom:16px;padding-bottom:12px}
+.app-view[data-view="add"] .mock-meta-row{gap:15px;margin-bottom:15px}
+.app-view[data-view="add"] .mock-topline .form-group,
+.app-view[data-view="add"] .mock-meta-row .form-group{display:flex;align-items:center;gap:9px;min-width:0}
+.app-view[data-view="add"] .mock-topline label,
+.app-view[data-view="add"] .mock-meta-row label{flex:0 0 auto;margin:0!important;font-size:.75rem!important;line-height:1.2;white-space:nowrap}
+.app-view[data-view="add"] .mock-topline select,
+.app-view[data-view="add"] .mock-meta-row input,
+.app-view[data-view="add"] .mock-meta-row select{flex:1 1 auto;min-width:0;width:100%;padding:10px!important;font-size:.9rem}
+.app-view[data-view="add"] .score-table{font-size:.85rem;margin:10px 0 15px}
+.app-view[data-view="add"] .score-table td{padding:4px}
+.app-view[data-view="add"] .score-table input{padding:8px}
+.app-view[data-view="add"] .action-row{margin:15px 0 18px;gap:15px}
+.app-view[data-view="add"] .btn{padding:12px}
+.app-view[data-view="add"] .mock-link-field{grid-template-columns:145px minmax(0,1fr);gap:12px}
+.app-view[data-view="add"] .mock-link-field label{font-size:.75rem!important;white-space:normal}
+.app-view[data-view="add"] .mock-link-field input{padding:10px!important;font-size:.9rem}
+/* Undo V6 modal compression and return to the V5/original modal dimensions. */
+.modal-overlay{padding:0}
+.modal-content{width:90%;max-width:1000px;max-height:90vh;padding:30px}
+.modal-content .modal-grid{grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:15px;margin-top:20px}
+.modal-content .speedometer-box{padding:15px}
+.modal-content .speedometer-box canvas{max-height:none!important}
+.modal-content #modStatsBg{padding:15px!important;margin-bottom:20px!important;gap:10px!important}
+.modal-content #modNameTitle{font-size:1.5rem!important}
+.modal-content #modSubTitle{margin-bottom:20px!important;padding-bottom:15px!important}
+@media(max-width:1100px){.app-view[data-view="add"] .mock-meta-row .form-group{flex-wrap:wrap}.app-view[data-view="add"] .mock-meta-row label{width:100%}}
+@media(max-width:700px){
+ .app-view[data-view="add"] .card{padding:14px!important}
+ .app-view[data-view="add"] .mock-topline{grid-template-columns:1fr;gap:10px}
+ .app-view[data-view="add"] .mock-meta-row{grid-template-columns:1fr;gap:10px}
+ .app-view[data-view="add"] .mock-meta-row .form-group{flex-wrap:nowrap}
+ .app-view[data-view="add"] .mock-meta-row label{width:100px;white-space:normal}
+ .app-view[data-view="add"] .mock-link-field{grid-template-columns:100px minmax(0,1fr)}
+ .modal-content{width:94%;max-height:90vh;padding:18px}
+ .modal-content .modal-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+
+
+/* V10: dedicated playlist library, details and API settings */
+.app-view[data-view="playlists"] #playlistList{display:block!important;margin-top:12px}
+.app-view[data-view="playlists"] .card{padding:16px}
+.playlist-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px}.playlist-toolbar span{font-size:.8rem;color:var(--muted)}
+.study-library-v10{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:17px}
+.study-library-card{position:relative;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:13px;overflow:hidden;padding-bottom:13px;transition:border-color .15s,transform .15s}
+.study-library-card:hover{border-color:var(--accent);transform:translateY(-2px)}.study-library-open{display:block;width:100%;border:0;background:none;text-align:left;padding:0 0 8px;cursor:pointer;color:var(--text);font:inherit}
+.study-library-v10 .study-library-cover{border-radius:0;aspect-ratio:16/9}.study-library-v10 .study-library-title{font-size:.9rem;padding:0 36px 0 12px;margin-top:10px;min-height:2.4em}.study-library-v10 .study-library-channel{padding:0 12px;font-size:.75rem}
+.study-card-footer{display:flex;justify-content:space-between;gap:8px;padding:0 12px;font-size:.73rem;color:var(--muted)}.study-library-card>.extra-progress{margin:9px 12px 0;height:6px}
+.study-card-menu{position:absolute;right:8px;top:calc(100% - 105px)}.playlist-menu{position:relative;display:inline-flex}.playlist-menu>.mini-icon{font-size:23px;line-height:1;padding:4px 8px}.playlist-menu-items{position:absolute;z-index:30;right:0;top:100%;min-width:165px;padding:5px;background:var(--card);border:1px solid var(--border);border-radius:9px;box-shadow:0 8px 24px #0003}.playlist-menu-items[hidden]{display:none}.playlist-menu-items button{display:block;width:100%;background:none;color:var(--text);border:0;text-align:left;padding:9px;border-radius:6px;cursor:pointer;font:inherit;font-size:.78rem}.playlist-menu-items button:hover{background:var(--bg)}
+.study-back{border:0;background:none;color:var(--accent);font:inherit;font-weight:750;cursor:pointer;padding:4px 0 12px}.study-detail-v10{display:grid;grid-template-columns:minmax(240px,35%) minmax(0,65%);gap:18px;align-items:start}
+.study-detail-left,.study-detail-right{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px;min-width:0}.study-detail-left{position:sticky;top:15px}.study-detail-cover{aspect-ratio:16/9;border-radius:10px;overflow:hidden;background:var(--bg);display:grid;place-items:center}.study-detail-cover img{width:100%;height:100%;object-fit:cover}.study-detail-left h3{font-size:1.1rem;margin:13px 0 5px;overflow-wrap:anywhere}.study-detail-channel,.study-detail-count,.study-detail-percent{color:var(--muted);font-size:.8rem;margin-top:7px}.study-detail-left .extra-progress{margin-top:13px}.study-continue{width:100%;margin:16px 0 10px}
+.study-video-top{display:flex;align-items:center;justify-content:space-between;gap:12px}.study-video-top input{width:min(250px,60%);padding:8px}.study-video-controls{display:flex;gap:8px;justify-content:flex-end;margin:9px 0}.study-video-controls select{width:auto;min-width:130px;padding:7px;font-size:.78rem}.study-detail-right .study-viewer-videos{max-height:calc(100vh - 270px);overflow:auto;margin-top:8px}.study-detail-right .study-video-card{background:var(--bg);gap:12px}.study-detail-right .study-video-link img{width:112px}.study-detail-right .study-video-channel{font-weight:400}
+.yt-settings{padding:14px;border:1px solid var(--border);border-radius:10px;margin-bottom:16px;background:var(--bg)}.yt-settings h3{margin:0 0 7px;font-size:.95rem}.yt-settings label{font-size:.77rem;color:var(--muted)}.yt-key-row{display:flex;gap:8px;margin:7px 0}.yt-key-row input{flex:1;min-width:0}.yt-settings .extra-actions{margin-top:10px}
+@media(max-width:1000px){.study-library-v10{grid-template-columns:repeat(2,minmax(0,1fr))}.study-detail-v10{grid-template-columns:1fr}.study-detail-left{position:static}.study-detail-right .study-viewer-videos{max-height:none}}
+@media(max-width:560px){.study-library-v10{grid-template-columns:1fr}.study-video-top{align-items:stretch;flex-direction:column}.study-video-top input{width:100%}.study-detail-right .study-video-link img{width:80px}.study-video-controls{flex-wrap:wrap}}
+
+
+/* V12: remove repeated playlist headings and keep card actions visible */
+.app-view[data-view="playlists"] .extra-head{display:none!important}
+.app-view[data-view="playlists"] #playlistBreadcrumb{display:none!important}
+.app-view[data-view="playlists"] .playlist-toolbar{justify-content:flex-end}
+.study-library-card{overflow:visible;isolation:isolate}
+.study-library-card:has(.playlist-menu-items:not([hidden])){z-index:50}
+.study-library-card .study-library-cover{overflow:hidden;border-radius:12px 12px 0 0}
+.study-card-menu{top:9px;right:9px;z-index:2}
+.study-card-menu .playlist-menu>.mini-icon{background:var(--card);border:1px solid var(--border);border-radius:8px;box-shadow:0 2px 8px #0004;color:var(--text);min-width:35px;min-height:32px}
+.study-card-menu .playlist-menu-items{top:calc(100% + 5px);right:0;z-index:60;min-width:185px}
+
+/* Advance Analyzer V1: visual layer; original application data keys unchanged */
+:root{--nav-expanded:260px;--nav-compact:74px;--motion-speed:190ms}
+[data-premium-theme="aurora"]{--bg:#110f20;--card-base:34,28,53;--border:#423754;--text:#f4f0ff;--muted:#aaa0c5}
+[data-premium-theme="arctic"]{--bg:#f1f6fc;--card-base:255,255,255;--border:#dce6f1;--text:#15253e;--muted:#62758b}
+[data-premium-theme="midnight"]{--bg:#0b1220;--card-base:25,36,55;--border:#31435b;--text:#eef5ff;--muted:#a2b1c7}
+.app-shell{grid-template-columns:var(--nav-expanded) minmax(0,1fr);transition:grid-template-columns var(--motion-speed) ease}
+.app-shell.nav-compact{grid-template-columns:var(--nav-compact) minmax(0,1fr)}
+.app-nav{padding:16px 11px;gap:6px;overflow:visible;z-index:15}
+.app-nav .nav-brand{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:5px 5px 15px;margin-bottom:9px;border-bottom:1px solid var(--border)}
+.nav-brand-name{font-size:13px;font-weight:800;letter-spacing:.035em;white-space:nowrap}.nav-brand-sub{font-size:10px;color:var(--muted);margin-top:3px;white-space:nowrap}
+.app-nav button.nav-collapse{width:34px;min-width:34px;height:34px;display:grid;place-items:center;padding:0;font-size:19px;border:1px solid var(--border);background:var(--bg);border-radius:9px}
+.app-nav button[data-route]{position:relative;font-size:16px;font-weight:650;padding:13px 12px;border-radius:11px;gap:13px;transition:background var(--motion-speed),color var(--motion-speed),transform var(--motion-speed),box-shadow var(--motion-speed)}
+.app-nav button[data-route]:hover{background:color-mix(in srgb,var(--accent) 11%,var(--card));transform:translateX(3px)}
+.app-nav button[data-route].active{background:color-mix(in srgb,var(--accent) 13%,var(--card));border-color:color-mix(in srgb,var(--accent) 32%,transparent);box-shadow:0 3px 14px #0000000b}
+.app-nav button[data-route].active:before{content:'';position:absolute;left:0;top:24%;bottom:24%;width:3px;background:var(--accent);border-radius:4px}
+.nav-ico{width:23px;height:23px;display:grid;place-items:center;flex:none}.nav-ico svg{width:21px;height:21px;stroke:currentColor;stroke-width:1.85;fill:none;stroke-linecap:round;stroke-linejoin:round}.nav-label{white-space:nowrap}
+.app-nav button[data-route="settings"]{margin-top:auto}
+.nav-compact .nav-brand-name,.nav-compact .nav-brand-sub,.nav-compact .nav-label{display:none}
+.nav-compact .nav-brand{justify-content:center;flex-direction:column;gap:10px}.nav-compact .nav-brand-mark{display:none}
+.nav-compact .app-nav button[data-route]{justify-content:center;padding:13px 0;gap:0}
+.nav-compact .app-nav button[data-route]:hover{transform:translateY(-2px)}
+.app-view.active{animation:aaAppear .22s ease-out}@keyframes aaAppear{from{opacity:.55;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+.app-view .card,.stat-box,.sec-stat-box,.exam-tile,.study-library-card{transition:transform var(--motion-speed),box-shadow var(--motion-speed),border-color var(--motion-speed)}
+.stat-box:hover,.sec-stat-box:hover,.exam-tile:hover{transform:translateY(-3px);box-shadow:0 10px 22px #00000018}
+.study-library-card:hover{transform:translateY(-4px);box-shadow:0 14px 28px #00000025}
+.study-library-card .study-library-cover img{transition:transform .25s ease}.study-library-card:hover .study-library-cover img{transform:scale(1.035)}
+.study-video-card.is-complete{border-color:color-mix(in srgb,var(--green) 28%,var(--border))}
+input:focus-visible,select:focus-visible,button:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.app-view[data-view="add"] #liveScore{transition:transform .2s,color .2s}
+.aa-panel{border:1px solid var(--border);border-radius:12px;padding:15px;margin:12px 0;background:var(--card)}.aa-panel h3{margin:0 0 10px;font-size:1rem}.aa-panel p{font-size:.78rem;color:var(--muted)}
+.aa-options{display:flex;flex-wrap:wrap;align-items:center;gap:10px}.aa-options label{font-size:.82rem;color:var(--muted)}.aa-options select{width:auto;min-width:150px}
+.aa-color{width:30px;height:30px;border:2px solid var(--border);border-radius:50%;cursor:pointer}.aa-color[aria-pressed="true"]{outline:2px solid var(--accent);outline-offset:2px}
+.aa-history-search{width:100%;margin:0 0 12px;box-sizing:border-box}.aa-personal-best{font-size:.78rem;color:var(--accent);font-weight:750;margin:8px 0}
+.aa-toast{position:fixed;right:18px;bottom:20px;background:var(--card);border:1px solid var(--accent);color:var(--text);padding:11px 17px;border-radius:10px;z-index:500;box-shadow:0 10px 28px #0004}
+@media(max-width:800px){.app-shell,.app-shell.nav-compact{grid-template-columns:1fr}.app-nav{height:auto;position:relative;top:0;flex-direction:row;overflow-x:auto;align-items:center}.app-nav .nav-brand{padding:0;margin:0;border:0;flex:none}.app-nav button[data-route="settings"]{margin-top:0}.nav-compact .nav-label{display:none}.app-nav button[data-route]{width:auto;flex:none}.app-nav button[data-route]:hover{transform:none}}
+@media(prefers-reduced-motion:reduce){.app-shell,.app-nav button,.app-view.active,.study-library-card,.study-library-card img,.stat-box,.sec-stat-box,.exam-tile{animation:none!important;transition:none!important;transform:none!important}}
+
+/* V2: keep these route titles out of the content area */
+.app-view[data-view="countdown"] > .app-view-heading,
+.app-view[data-view="playlists"] > .app-view-heading,
+.app-view[data-view="history"] > .app-view-heading{display:none!important}
+body > .playlist-menu-items{max-width:calc(100vw - 16px);box-shadow:0 12px 35px #0005}
+</style>
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#0b1220" />
+    <link rel="apple-touch-icon" href="./icons/icon-192.png" />
+    <script>if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(e=>console.warn('Offline setup:',e)));}</script>
+  </head>
+  <body>
+    <header class="top-bar">
+      <div class="top-bar-controls">
+        <div style="display: flex; align-items: center; gap: 10px">
+          <span style="font-size: 1.6rem">🎯</span>
+          <div style="display: flex; flex-direction: column">
+            <label
+              style="
+                color: var(--muted);
+                font-size: 0.65rem;
+                font-weight: bold;
+                margin-bottom: 2px;
+                text-transform: uppercase;
+              "
+              >Exam</label
+            >
+            <select
+              id="globalFilterExam"
+              onchange="
+                updateGlobalTierFilter();
+                rememberExamSelection();
+                updateDashboard();
+              "
+            ></select>
+          </div>
+          <div style="display: flex; flex-direction: column">
+            <label
+              style="
+                color: var(--muted);
+                font-size: 0.65rem;
+                font-weight: bold;
+                margin-bottom: 2px;
+                text-transform: uppercase;
+              "
+              >Tier</label
+            >
+            <select
+              id="globalFilterTier"
+              onchange="
+                buildFormTable();
+                rememberExamSelection();
+                updateDashboard();
+              "
+            ></select>
+          </div>
+
+        </div>
+      </div>
+      <div class="top-bar-status" id="activeExamDisplay">
+        Current: SSC CGL - Pre
+      </div>
+    </header>
+
+    <div class="container">
+      <div class="main-content">
+        <div class="dash-header">
+          <div
+            style="
+              font-size: 1.2rem;
+              font-weight: bold;
+              color: var(--text);
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            "
+          >
+            Performance Overview
+          </div>
+          <div
+            style="
+              display: flex;
+              gap: 15px;
+              flex-wrap: wrap;
+              align-items: center;
+            "
+          >
+            <div class="filter-group analytics-mode-filter">
+              <label for="analyticsMode">View:</label>
+              <select id="analyticsMode" onchange="updateAnalyticsMode()"><option value="full">Full</option><option value="sectional">Sectional</option></select>
+            </div>
+            <div class="filter-group analytics-subject-filter" id="analyticsSubjectGroup" style="display:none">
+              <label for="analyticsSubject">Subject:</label>
+              <select id="analyticsSubject" onchange="updateDashboard()"></select>
+            </div>
+            <div class="filter-group">
+              <label
+                style="color: var(--muted); font-size: 0.9rem; font-weight: 600"
+                >Provider Filter:</label
+              >
+              <select
+                id="filterProv"
+                onchange="updateDashboard()"
+                style="width: 150px; padding: 6px; font-size: 0.85rem"
+              ></select>
+            </div>
+          </div>
+        </div>
+
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-val" id="st-total" style="color: var(--text)">
+              0
+            </div>
+            <div class="stat-lbl">Total Mocks</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" id="st-avg">0</div>
+            <div class="stat-lbl">Overall Avg</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: var(--green)" id="st-recent">
+              0
+            </div>
+            <div class="stat-lbl">Last 5 Avg</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: var(--yellow)" id="st-acc">
+              0%
+            </div>
+            <div class="stat-lbl">Avg Accuracy</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-val" style="color: var(--purple)" id="st-perc">
+              0%
+            </div>
+            <div class="stat-lbl" id="analyticsPercentileLabel">Avg Percentile</div>
+          </div>
+        </div>
+
+        <div id="sectionalWarning" style="display: none">
+          ⚠️ Please select a specific <b>Exam</b> and <b>Tier</b> from the top
+          header to view detailed Sectional Analytics.
+        </div>
+
+        <div id="dynamicSectionalData">
+          <div class="card">
+            <h2>Sectional Average Scores</h2>
+            <div
+              id="saGrid"
+              style="
+                display: grid;
+                grid-auto-flow: column;
+                grid-auto-columns: minmax(130px, 1fr);
+                gap: 12px;
+                overflow-x: auto;
+                padding-bottom: 5px;
+              "
+            ></div>
+          </div>
+
+          <div class="dual-grid">
+            <div class="card">
+              <h2>Avg Time Allocation (Mins)</h2>
+              <div class="time-numeric-grid" id="timeGrid"></div>
+            </div>
+
+            <div class="card">
+              <h2>🎯 Sectional Accuracy & Skip Rate</h2>
+              <div
+                style="display: flex; flex-direction: column; margin-top: 15px"
+                id="accSkipContainer"
+              ></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h2 style="align-items: center">
+            <span id="mainTrendHeading">Overall Score Trend</span>
+            <div class="filter-group" style="margin: 0; gap: 8px">
+              <label style="font-size: 0.85rem; margin: 0; color: var(--muted)"
+                >Target Score:</label
+              >
+              <input
+                type="number"
+                id="globalTargetInp"
+                onchange="updateGlobalTarget()"
+                style="
+                  width: 70px;
+                  padding: 6px;
+                  font-size: 0.85rem;
+                  border-radius: 6px;
+                "
+                title="Set your ultimate goal for this specific exam tier"
+              />
+            </div>
+          </h2>
+          <div class="chart-wrapper"><canvas id="mainChart"></canvas></div>
+        </div>
+
+        <div class="card" id="sectionChartCard">
+          <h2>Sectional Performance Trend</h2>
+          <div class="chart-wrapper"><canvas id="sectionChart"></canvas></div>
+        </div>
+      </div>
+
+      <div class="sidebar">
+        <div class="card" style="position: static; top: 20px">
+          <h2
+            onclick="toggleForm()"
+            class="form-toggle-header"
+            style="cursor: pointer; transition: 0.2s; user-select: none"
+          >
+            Add Mock Data
+            <span id="formIcon" style="font-size: 0.9rem; transition: 0.3s"
+              >▼</span
+            >
+          </h2>
+
+          <div id="scoreFormWrapper">
+            <form id="scoreForm">
+              <div class="mock-topline">
+                <div class="form-group"><label for="mType">Mock Type</label><select id="mType" onchange="updateMockTypeUI()"><option value="full">Full Mock</option><option value="sectional">Sectional Mock</option></select></div>
+                <div class="form-group"><label for="mSection">Subject (Sectional)</label><select id="mSection" onchange="updateMockTypeUI()" disabled><option value="">Select subject</option></select></div>
+              </div>
+              <div class="input-grid mock-meta-row">
+                <div class="form-group"><label for="mName">Mock Name</label><input type="text" id="mName" placeholder="e.g. Live 1" required /></div>
+                <div class="form-group"><label for="mProv">Provider</label><select id="mProv" onchange="checkAddProvider(this)"></select></div>
+                <div class="form-group"><label for="mLevel">Level</label><select id="mLevel"><option value="Easy">Easy</option><option value="Moderate" selected>Moderate</option><option value="Hard">Hard</option></select></div>
+              </div>
+              <div class="input-grid mock-meta-row">
+                <div class="form-group"><label for="mDate">Date</label><input type="date" id="mDate" required /></div>
+                <div class="form-group"><label for="mPerc">Percentile</label><input type="number" id="mPerc" step="0.01" min="0" max="100" placeholder="95.5" /></div>
+                <div class="form-group"><label for="mCutoff">Cut-off</label><input type="number" id="mCutoff" placeholder="150" /></div>
+              </div>
+
+              <table class="score-table">
+                <thead>
+                  <tr>
+                    <th style="text-align: left">Subject</th>
+                    <th>Correct</th>
+                    <th>Wrong</th>
+                    <th>Time (m)</th>
+                  </tr>
+                </thead>
+                <tbody id="formTableBody" oninput="liveCalculate()"></tbody>
+              </table>
+
+              <div class="action-row">
+                <div class="live-score" id="liveScore">
+                  <span id="lsMain" style="font-size: 1.2rem">Total: 0</span>
+                  <span
+                    id="lsQual"
+                    style="
+                      font-size: 0.75rem;
+                      color: var(--muted);
+                      display: none;
+                      font-weight: normal;
+                      margin-top: 3px;
+                    "
+                    >Qualifying: 0</span
+                  >
+                </div>
+                <button
+                  type="button"
+                  class="btn btn-cancel"
+                  id="cancelEditBtn"
+                  style="display: none"
+                  onclick="cancelEdit()"
+                >
+                  Cancel
+                </button>
+                <button type="submit" class="btn" id="submitBtn">
+                  Save Analytics
+                </button>
+              </div>
+              <div class="form-group mock-link-field" style="margin-top:10px;">
+                <label for="mLink">Mock Analysis Link (Optional)</label>
+                <input type="url" id="mLink" placeholder="https://example.com/mock-analysis" autocomplete="url" />
+              </div>
+            </form>
+
+            <!-- <div class="ai-upload-box">
+              <label for="aiScreenshot" style="cursor: pointer; display: block">
+                <div class="ai-btn">✨ Auto-Fill with Gemini AI</div>
+                <div
+                  style="
+                    font-size: 0.75rem;
+                    color: var(--muted);
+                    margin-top: 5px;
+                    margin-bottom: 8px;
+                  "
+                >
+                  Upload screenshot of mock analysis
+                </div>
+              </label>
+              <input
+                type="file"
+                id="aiScreenshot"
+                accept="image/*"
+                style="display: none"
+                onchange="handleScreenshotUpload(event)"
+              />
+
+              <div
+                id="aiLoading"
+                style="
+                  display: none;
+                  color: var(--accent);
+                  font-size: 0.85rem;
+                  margin-top: 10px;
+                  font-weight: 600;
+                "
+              >
+                ⏳ Extracting data... Please wait.
+              </div>
+            </div> -->
+          </div>
+        </div>
+
+
+        <!-- Exam countdown and playlist drawers: same width as Add Mock Data -->
+        <div class="card extra-card">
+          <h2 class="extra-head" onclick="toggleExtra('countdown')">Exam Countdown <span id="countdownArrow">▶</span></h2>
+          <div id="countdownBody" class="extra-body" hidden>
+            <div id="countdownList" class="extra-list"></div>
+            <button class="btn-sm extra-btn" onclick="showExamForm()">＋ Add New Exam</button>
+            <form id="examCountdownForm" class="extra-form" hidden>
+              <label for="examCountdownName">Exam name</label><input id="examCountdownName" required maxlength="120" placeholder="e.g. SSC CGL — Tier 2" />
+              <label for="examCountdownDate">Exam date</label><input type="date" id="examCountdownDate" required />
+              <div class="extra-actions"><button class="btn" type="submit">Save Exam</button><button class="btn btn-cancel" type="button" onclick="hideExamForm()">Cancel</button></div>
+            </form>
+          </div>
+        </div>
+        <div class="card extra-card">
+          <h2 class="extra-head" onclick="toggleExtra('playlists')" hidden>Study Playlists <span id="playlistsArrow">▶</span></h2>
+          <div id="playlistsBody" class="extra-body" hidden>
+            <div class="playlist-toolbar"><span id="playlistBreadcrumb" hidden></span><button class="btn-sm" id="playlistAddBtn" type="button" onclick="togglePlaylistForm()">＋ Add Playlist</button></div>
+            <form id="playlistForm" class="extra-form" hidden>
+              <label for="playlistUrl">YouTube playlist URL</label><input id="playlistUrl" type="url" required placeholder="https://www.youtube.com/playlist?list=..." />
+              <label for="playlistTitle">Custom name (optional)</label><input id="playlistTitle" placeholder="e.g. SSC Maths — Revision" />
+              <div class="extra-actions"><button class="btn" type="submit">Import Playlist</button><button class="btn btn-cancel" type="button" onclick="togglePlaylistForm(false)">Cancel</button></div>
+            </form>
+            <div id="playlistMessage" class="extra-notice" role="status" aria-live="polite"></div>
+            <div id="playlistList" class="extra-list"></div>
+          </div>
+        </div>
+        <div class="card" style="margin-top: 20px">
+          <h2>History</h2>
+          <div
+            id="historyList"
+            style="max-height: 400px; overflow-y: auto"
+          ></div>
+
+          <div
+            style="
+              margin-top: 15px;
+              border-top: 1px solid var(--border);
+              padding-top: 15px;
+            "
+          >
+            <h3
+              style="font-size: 0.9rem; color: var(--muted); margin: 0 0 10px 0"
+            >
+              Data Backup
+            </h3>
+            <div class="action-btns-grid">
+              <button class="btn-sm" onclick="exportJSON()">
+                ⬇️ Export Backup
+              </button>
+              <button
+                class="btn-sm"
+                onclick="document.getElementById('importJson').click()"
+              >
+                ⬆️ Import Backup
+              </button>
+            </div>
+            <input
+              type="file"
+              id="importJson"
+              accept=".json"
+              style="display: none"
+              onchange="importJSON(event)"
+            />
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 20px; padding: 10px 20px">
+          <h2
+            style="cursor: pointer; border: none; padding: 0; margin: 10px 0"
+            onclick="toggleSettings()"
+          >
+            ⚙️ Settings & Setup
+            <span id="settingsIcon" style="font-size: 0.9rem">▼</span>
+          </h2>
+
+          <div id="settingsContainer" style="display: none; margin-top: 15px">
+            <div class="yt-settings"><h3>YouTube Integration</h3><p class="extra-help">Use a YouTube Data API v3 key to import playlist videos and metadata. Your key stays in this browser and is excluded from JSON backups.</p>
+              <label for="youtubeApiKey">YouTube Data API key</label>
+              <div class="yt-key-row"><input id="youtubeApiKey" type="password" autocomplete="off" placeholder="Paste API key" /><button class="btn-sm" type="button" id="ytShowKey">Show</button></div>
+              <div class="extra-actions"><button class="btn-sm" type="button" id="ytSaveTest">Save & Test</button><button class="btn-sm" type="button" id="ytRemoveKey">Remove Key</button></div>
+              <div id="ytApiStatus" class="extra-help" role="status" aria-live="polite"></div>
+            </div>
+
+            <!-- <details class="settings-group">
+              <summary class="settings-header">🔑 Gemini API Key</summary>
+              <div class="settings-content">
+                <div
+                  style="
+                    font-size: 0.75rem;
+                    color: var(--muted);
+                    margin-bottom: 10px;
+                  "
+                >
+                  Store your Gemini API key locally to use the Auto-Fill
+                  feature.
+                </div>
+                <input
+                  type="password"
+                  id="geminiApiKey"
+                  placeholder="Enter API Key here..."
+                  style="font-size: 0.8rem; padding: 8px; width: 100%"
+                  title="Your key is stored locally."
+                  onchange="saveApiKey(this.value)"
+                />
+              </div>
+            </details> -->
+
+            <!-- <details class="settings-group">
+              <summary class="settings-header">🎨 Theme Customization</summary>
+              <div class="settings-content">
+                <div
+                  class="input-grid"
+                  style="grid-template-columns: 1fr 1fr; align-items: center"
+                >
+                  <div>
+                    <label>Accent Color</label>
+                    <input
+                      type="color"
+                      id="themeAccent"
+                      value="#38bdf8"
+                      style="padding: 2px; height: 35px; cursor: pointer"
+                      onchange="applyCustomTheme()"
+                    />
+                  </div>
+                  <div>
+                    <label>Card Transparency</label>
+                    <input
+                      type="range"
+                      id="themeOpacity"
+                      min="0.1"
+                      max="1"
+                      step="0.1"
+                      value="1"
+                      style="width: 100%; cursor: pointer"
+                      onchange="applyCustomTheme()"
+                    />
+                  </div>
+                </div>
+                <button
+                  class="btn-sm"
+                  style="width: 100%; margin-top: 10px; color: var(--text)"
+                  onclick="resetTheme()"
+                >
+                  Reset to Default
+                </button>
+              </div>
+            </details> -->
+
+            <details class="settings-group">
+              <summary class="settings-header">
+                📚 Manage Exam Structure
+              </summary>
+              <div class="settings-content">
+                <div
+                  style="
+                    font-size: 0.75rem;
+                    color: var(--muted);
+                    margin-bottom: 15px;
+                    line-height: 1.4;
+                  "
+                >
+                  Build custom exams below. Example: For RRB NTPC with no
+                  sections, create 1 section named "Overall Test".
+                </div>
+
+                <div
+                  style="
+                    background: var(--bg);
+                    padding: 15px;
+                    border-radius: 8px;
+                    border: 1px dashed var(--border);
+                    margin-bottom: 15px;
+                  "
+                >
+                  <h3
+                    style="
+                      font-size: 0.85rem;
+                      margin-top: 0;
+                      color: var(--text);
+                    "
+                  >
+                    1. Create New Exam Draft
+                  </h3>
+                  <div
+                    class="input-grid"
+                    style="grid-template-columns: 1fr 1fr"
+                  >
+                    <input
+                      type="text"
+                      id="draftExamName"
+                      placeholder="Exam Name (e.g. RRB NTPC)"
+                    />
+                    <input
+                      type="text"
+                      id="draftTierName"
+                      placeholder="Tier Name (e.g. CBT 1)"
+                    />
+                  </div>
+
+                  <h3
+                    style="
+                      font-size: 0.85rem;
+                      margin-top: 15px;
+                      color: var(--text);
+                    "
+                  >
+                    2. Add Sections to Draft
+                  </h3>
+                  <div
+                    class="input-grid"
+                    style="grid-template-columns: 2fr 1fr 1fr 1fr"
+                  >
+                    <input
+                      type="text"
+                      id="draftSecName"
+                      placeholder="Sec Name (e.g. Maths)"
+                    />
+                    <input type="number" id="draftSecQs" placeholder="Qs" />
+                    <input
+                      type="number"
+                      id="draftSecPos"
+                      step="0.01"
+                      placeholder="+ Mark"
+                    />
+                    <input
+                      type="number"
+                      id="draftSecNeg"
+                      step="0.01"
+                      placeholder="Neg (e.g. 0.5)"
+                    />
+                  </div>
+                  <div
+                    class="input-grid"
+                    style="grid-template-columns: 1fr 1fr auto"
+                  >
+                    <select id="draftSecType" onchange="toggleDraftQual()">
+                      <option value="main">Main (Counts to Total)</option>
+                      <option value="qualifying">Qualifying Only</option>
+                    </select>
+                    <input
+                      type="number"
+                      id="draftSecQualMarks"
+                      step="0.01"
+                      placeholder="Min Qual Marks"
+                      style="display: none"
+                    />
+                    <button
+                      class="btn-sm"
+                      style="
+                        background: var(--accent);
+                        color: #fff;
+                        border: none;
+                      "
+                      onclick="addDraftSection()"
+                    >
+                      + Add Section
+                    </button>
+                  </div>
+
+                  <div
+                    id="draftSectionsList"
+                    style="margin-top: 15px; min-height: 20px"
+                  ></div>
+
+                  <button
+                    class="btn"
+                    style="margin-top: 15px; padding: 8px"
+                    onclick="saveDraftExam()"
+                  >
+                    💾 Save Full Exam
+                  </button>
+                </div>
+
+                <div
+                  style="border-top: 1px solid var(--border); padding-top: 15px"
+                >
+                  <h3
+                    style="font-size: 0.85rem; margin-top: 0; color: var(--red)"
+                  >
+                    Delete Exam / Tier
+                  </h3>
+                  <div
+                    class="input-grid"
+                    style="grid-template-columns: 1fr 1fr auto"
+                  >
+                    <select
+                      id="delExamSelect"
+                      onchange="populateDeleteTierDropdown()"
+                    ></select>
+                    <select id="delTierSelect"></select>
+                    <button
+                      class="btn-sm"
+                      style="background: var(--red); color: #fff; border: none"
+                      onclick="deleteExamOrTier()"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </details>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div
+      id="analysisModal"
+      class="modal-overlay"
+      onclick="if (event.target === this) closeAnalysisModal();"
+    >
+      <div class="modal-content">
+        <span class="modal-close" onclick="closeAnalysisModal()">&times;</span>
+        <h2
+          id="modNameTitle"
+          style="
+            border-bottom: none;
+            margin-bottom: 5px;
+            font-size: 1.5rem;
+            color: var(--accent);
+          "
+        >
+          Mock Name
+        </h2>
+        <div
+          style="
+            color: var(--muted);
+            font-size: 0.9rem;
+            margin-bottom: 20px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 15px;
+          "
+          id="modSubTitle"
+        ></div>
+
+        <div
+          style="
+            display: flex;
+            justify-content: space-around;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+            flex-wrap: wrap;
+            gap: 10px;
+          "
+          id="modStatsBg"
+        >
+          <div style="text-align: center">
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--muted);
+                text-transform: uppercase;
+              "
+            >
+              Total Score
+            </div>
+            <div
+              style="font-size: 1.8rem; font-weight: 800; color: var(--text)"
+              id="modTotalScore"
+            >
+              0
+            </div>
+          </div>
+          <div style="text-align: center">
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--muted);
+                text-transform: uppercase;
+              "
+            >
+              Accuracy
+            </div>
+            <div
+              style="font-size: 1.8rem; font-weight: 800; color: var(--yellow)"
+              id="modAccuracy"
+            >
+              0%
+            </div>
+          </div>
+          <div style="text-align: center">
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--muted);
+                text-transform: uppercase;
+              "
+            >
+              Percentile
+            </div>
+            <div
+              style="font-size: 1.8rem; font-weight: 800; color: var(--purple)"
+              id="modPercentile"
+            >
+              0%
+            </div>
+          </div>
+          <div style="text-align: center">
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--muted);
+                text-transform: uppercase;
+              "
+            >
+              Cut-off Status
+            </div>
+            <div
+              style="font-size: 1.8rem; font-weight: 800"
+              id="modCutoffStatus"
+            >
+              -
+            </div>
+          </div>
+          <div id="modQualContainer" style="display: none; text-align: center">
+            <div
+              style="
+                font-size: 0.8rem;
+                color: var(--muted);
+                text-transform: uppercase;
+              "
+              id="modQualTitle"
+            >
+              Qualifying
+            </div>
+            <div style="font-size: 1.8rem; font-weight: 800" id="modQualStatus">
+              -
+            </div>
+          </div>
+        </div>
+
+        <div class="modal-grid" id="modalSpeedometers"></div>
+      </div>
+    </div>
+
+    <script>
+      const $ = (id) => document.getElementById(id);
+      let chartsData = {},
+        modalCharts = {};
+      let editMockId = null;
+
+      // --- EXAM CONFIGURATION ENGINE ---
+      const UI_COLORS = [
+        "#38bdf8",
+        "#a855f7",
+        "#10b981",
+        "#f59e0b",
+        "#ec4899",
+        "#f97316",
+      ];
+
+      const DEFAULT_EXAM_CONFIG = {
+        "SSC CGL": {
+          Pre: {
+            sections: [
+              {
+                id: "reas",
+                name: "Reasoning",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+              {
+                id: "gk",
+                name: "Gen Awareness",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+              {
+                id: "quant",
+                name: "Quant",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+              {
+                id: "eng",
+                name: "English",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+            ],
+          },
+          Mains: {
+            sections: [
+              {
+                id: "maths",
+                name: "Maths",
+                qs: 30,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "reas",
+                name: "Reasoning",
+                qs: 30,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "eng",
+                name: "English",
+                qs: 45,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "gk",
+                name: "Gen Awareness",
+                qs: 25,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "comp",
+                name: "Computer",
+                qs: 20,
+                pos: 3,
+                neg: 1,
+                type: "qualifying",
+                qualMarks: 18,
+              },
+            ],
+          },
+        },
+        "SSC CHSL": {
+          Pre: {
+            sections: [
+              {
+                id: "reas",
+                name: "Reasoning",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+              {
+                id: "gk",
+                name: "Gen Awareness",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+              {
+                id: "quant",
+                name: "Quant",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+              {
+                id: "eng",
+                name: "English",
+                qs: 25,
+                pos: 2,
+                neg: 0.5,
+                type: "main",
+              },
+            ],
+          },
+          Mains: {
+            sections: [
+              {
+                id: "maths",
+                name: "Maths",
+                qs: 30,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "reas",
+                name: "Reasoning",
+                qs: 30,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "eng",
+                name: "English",
+                qs: 40,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "gk",
+                name: "Gen Awareness",
+                qs: 20,
+                pos: 3,
+                neg: 1,
+                type: "main",
+              },
+              {
+                id: "comp",
+                name: "Computer",
+                qs: 15,
+                pos: 3,
+                neg: 1,
+                type: "qualifying",
+                qualMarks: 13.5,
+              },
+            ],
+          },
+        },
+        "RRB NTPC (Grad)": {
+          "CBT 1": {
+            sections: [
+              {
+                id: "maths",
+                name: "Maths",
+                qs: 30,
+                pos: 1,
+                neg: 0.333,
+                type: "main",
+              },
+              {
+                id: "reas",
+                name: "Reasoning",
+                qs: 30,
+                pos: 1,
+                neg: 0.333,
+                type: "main",
+              },
+              {
+                id: "gk",
+                name: "Gen Awareness",
+                qs: 40,
+                pos: 1,
+                neg: 0.333,
+                type: "main",
+              },
+            ],
+          },
+        },
+        "Banking PO": {
+          Pre: {
+            sections: [
+              {
+                id: "eng",
+                name: "English",
+                qs: 30,
+                pos: 1,
+                neg: 0.25,
+                type: "main",
+              },
+              {
+                id: "quant",
+                name: "Quant",
+                qs: 35,
+                pos: 1,
+                neg: 0.25,
+                type: "main",
+              },
+              {
+                id: "reas",
+                name: "Reasoning",
+                qs: 35,
+                pos: 1,
+                neg: 0.25,
+                type: "main",
+              },
+            ],
+          },
+        },
+      };
+
+      let EXAM_CONFIG = JSON.parse(localStorage.getItem("ssc_exam_config"));
+      if (!EXAM_CONFIG || Object.keys(EXAM_CONFIG).length === 0) {
+        EXAM_CONFIG = DEFAULT_EXAM_CONFIG;
+        localStorage.setItem("ssc_exam_config", JSON.stringify(EXAM_CONFIG));
+      }
+
+      function saveExamConfig() {
+        localStorage.setItem("ssc_exam_config", JSON.stringify(EXAM_CONFIG));
+        initExamDropdowns();
+        updateDashboard();
+        populateDeleteExamDropdown();
+      }
+
+      // --- CONFIG MANAGER (DRAFT BUILDER) ---
+      let draftSections = [];
+
+      function toggleSettings() {
+        const c = $("settingsContainer");
+        const i = $("settingsIcon");
+        if (c.style.display === "none") {
+          c.style.display = "block";
+          i.innerText = "▲";
+        } else {
+          c.style.display = "none";
+          i.innerText = "▼";
+        }
+      }
+
+      function toggleDraftQual() {
+        $("draftSecQualMarks").style.display =
+          $("draftSecType").value === "qualifying" ? "block" : "none";
+      }
+
+      function addDraftSection() {
+        const name = $("draftSecName").value.trim();
+        const qs = parseInt($("draftSecQs").value);
+        const pos = parseFloat($("draftSecPos").value);
+        const neg = parseFloat($("draftSecNeg").value);
+        const type = $("draftSecType").value;
+        const qual = parseFloat($("draftSecQualMarks").value) || 0;
+
+        if (!name || isNaN(qs) || isNaN(pos) || isNaN(neg)) {
+          alert("Please fill Name, Qs, Pos, and Neg marks.");
+          return;
+        }
+
+        const id =
+          name.toLowerCase().replace(/\s+/g, "_").substring(0, 8) +
+          "_" +
+          Date.now().toString().slice(-4);
+        draftSections.push({
+          id,
+          name,
+          qs,
+          pos: Math.abs(pos),
+          neg: Math.abs(neg),
+          type,
+          qualMarks: qual,
+        });
+
+        $("draftSecName").value = "";
+        $("draftSecQs").value = "";
+        $("draftSecPos").value = "";
+        $("draftSecNeg").value = "";
+        $("draftSecQualMarks").value = "";
+        renderDraftTable();
+      }
+
+      function renderDraftTable() {
+        const list = $("draftSectionsList");
+        if (draftSections.length === 0) {
+          list.innerHTML = "";
+          return;
+        }
+
+        let html = `<table class="cfg-table" style="background:var(--card); border-radius:6px;"><thead><tr><th>Section</th><th>Qs</th><th>+</th><th>-</th><th>Type</th><th></th></tr></thead><tbody>`;
+        draftSections.forEach((s, idx) => {
+          html += `<tr>
+                  <td>${s.name}</td><td>${s.qs}</td><td>${s.pos}</td><td>${s.neg}</td>
+                  <td>${s.type === "qualifying" ? "Qual (" + s.qualMarks + ")" : "Main"}</td>
+                  <td><button class="btn-sm" style="color:var(--red); border-color:var(--red); padding: 2px 5px;" onclick="deleteDraftSection(${idx})">X</button></td>
+              </tr>`;
+        });
+        html += `</tbody></table>`;
+        list.innerHTML = html;
+      }
+
+      function deleteDraftSection(idx) {
+        draftSections.splice(idx, 1);
+        renderDraftTable();
+      }
+
+      function saveDraftExam() {
+        const ex = $("draftExamName").value.trim();
+        const ti = $("draftTierName").value.trim() || "Tier 1";
+
+        if (!ex) return alert("Exam Name is required!");
+        if (draftSections.length === 0)
+          return alert("Please add at least one section before saving.");
+
+        if (!EXAM_CONFIG[ex]) EXAM_CONFIG[ex] = {};
+        EXAM_CONFIG[ex][ti] = { sections: [...draftSections] };
+
+        saveExamConfig();
+
+        draftSections = [];
+        $("draftExamName").value = "";
+        $("draftTierName").value = "";
+        renderDraftTable();
+        alert(
+          `${ex} - ${ti} saved successfully! It is now available in the top header.`,
+        );
+      }
+
+      // --- DELETE EXAM / TIER ---
+      function populateDeleteExamDropdown() {
+        const sel = $("delExamSelect");
+        if (!sel) return;
+        sel.innerHTML = "";
+        Object.keys(EXAM_CONFIG).forEach(
+          (e) => (sel.innerHTML += `<option value="${e}">${e}</option>`),
+        );
+        populateDeleteTierDropdown();
+      }
+
+      function populateDeleteTierDropdown() {
+        const e = $("delExamSelect").value;
+        const tSel = $("delTierSelect");
+        if (!e || !tSel) return;
+        tSel.innerHTML = `<option value="ALL">All Tiers (Entire Exam)</option>`;
+        if (EXAM_CONFIG[e]) {
+          Object.keys(EXAM_CONFIG[e]).forEach(
+            (t) => (tSel.innerHTML += `<option value="${t}">${t}</option>`),
+          );
+        }
+      }
+
+      function deleteExamOrTier() {
+        const ex = $("delExamSelect").value;
+        const ti = $("delTierSelect").value;
+        if (!ex) return;
+
+        if (ti === "ALL") {
+          if (
+            confirm(
+              `WARNING: Permanently delete the ENTIRE "${ex}" config? Past scores will remain but can't be edited properly.`,
+            )
+          ) {
+            delete EXAM_CONFIG[ex];
+            saveExamConfig();
+            if ($("globalFilterExam").value === ex) {
+              $("globalFilterExam").value = Object.keys(EXAM_CONFIG)[0] || "";
+              updateGlobalTierFilter();
+            }
+          }
+        } else {
+          if (confirm(`Delete "${ti}" from "${ex}"?`)) {
+            delete EXAM_CONFIG[ex][ti];
+            if (Object.keys(EXAM_CONFIG[ex]).length === 0)
+              delete EXAM_CONFIG[ex];
+            saveExamConfig();
+            updateGlobalTierFilter();
+          }
+        }
+      }
+
+      // --- THEME CUSTOMIZER ---
+      function applyCustomTheme() {
+        const color = $("themeAccent").value;
+        const opacity = $("themeOpacity").value;
+
+        document.documentElement.style.setProperty("--accent", color);
+        document.documentElement.style.setProperty("--card-opacity", opacity);
+
+        localStorage.setItem("ssc_custom_accent", color);
+        localStorage.setItem("ssc_custom_opacity", opacity);
+
+        if (chartsData.main) {
+          chartsData.main.data.datasets[0].borderColor = color;
+          chartsData.main.data.datasets[0].pointBorderColor = color;
+          chartsData.main.update();
+        }
+      }
+
+      function resetTheme() {
+        document.documentElement.style.setProperty("--accent", "#38bdf8");
+        document.documentElement.style.setProperty("--card-opacity", "1");
+        localStorage.removeItem("ssc_custom_accent");
+        localStorage.removeItem("ssc_custom_opacity");
+        $("themeAccent").value = "#38bdf8";
+        $("themeOpacity").value = "1";
+        if (chartsData.main) {
+          chartsData.main.data.datasets[0].borderColor = "#38bdf8";
+          chartsData.main.data.datasets[0].pointBorderColor = "#38bdf8";
+          chartsData.main.update();
+        }
+      }
+
+      function initTheme() {
+        const savedTheme = localStorage.getItem("ssc_theme") || "dark";
+        document.documentElement.setAttribute("data-theme", savedTheme);
+        if ($("themeToggleBtn"))
+          $("themeToggleBtn").innerText = savedTheme === "light" ? "🌙" : "🌞";
+        Chart.defaults.color = savedTheme === "light" ? "#64748b" : "#94a3b8";
+        Chart.defaults.font.family = "Inter";
+
+        const savedAccent = localStorage.getItem("ssc_custom_accent");
+        const savedOpacity = localStorage.getItem("ssc_custom_opacity");
+        if (savedAccent) {
+          document.documentElement.style.setProperty("--accent", savedAccent);
+          if ($("themeAccent")) $("themeAccent").value = savedAccent;
+        }
+        if (savedOpacity) {
+          document.documentElement.style.setProperty(
+            "--card-opacity",
+            savedOpacity,
+          );
+          if ($("themeOpacity")) $("themeOpacity").value = savedOpacity;
+        }
+      }
+
+      function toggleTheme() {
+        const current = document.documentElement.getAttribute("data-theme");
+        const newTheme = current === "light" ? "dark" : "light";
+        document.documentElement.setAttribute("data-theme", newTheme);
+        localStorage.setItem("ssc_theme", newTheme);
+        if ($("themeToggleBtn"))
+          $("themeToggleBtn").innerText = newTheme === "light" ? "🌙" : "🌞";
+        Chart.defaults.color = newTheme === "light" ? "#64748b" : "#94a3b8";
+        const modStatsBg = $("modStatsBg");
+        if (modStatsBg)
+          modStatsBg.style.background =
+            newTheme === "light"
+              ? "rgba(15, 23, 42, 0.05)"
+              : "rgba(15, 23, 42, 0.5)";
+        updateDashboard();
+      }
+
+      // Remember the exact selected exam and tier across reloads.
+      const SELECTED_EXAM_KEY = 'pro_mock_selected_exam_v1';
+      function rememberExamSelection() {
+        const exam = $('globalFilterExam')?.value;
+        const tier = $('globalFilterTier')?.value;
+        if (exam && tier && EXAM_CONFIG[exam]?.[tier]) {
+          localStorage.setItem(SELECTED_EXAM_KEY, JSON.stringify({exam, tier}));
+        }
+      }
+      function restoreExamSelection() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(SELECTED_EXAM_KEY) || 'null');
+          if (saved && EXAM_CONFIG[saved.exam]?.[saved.tier]) {
+            $('globalFilterExam').value = saved.exam;
+            updateGlobalTierFilter();
+            $('globalFilterTier').value = saved.tier;
+            updateTopBarStatus();
+            buildFormTable();
+            loadGlobalTarget();
+          }
+        } catch (e) { /* Invalid old selection: use defaults. */ }
+      }
+      // --- INITIALIZATION & DROPDOWNS ---
+      function initExamDropdowns() {
+        const exams = Object.keys(EXAM_CONFIG);
+        const fExam = $("globalFilterExam");
+
+        const curE = fExam.value;
+        fExam.innerHTML = ""; // Removed "All Exams"
+        exams.forEach(
+          (e) => (fExam.innerHTML += `<option value="${e}">${e}</option>`),
+        );
+
+        if (curE && EXAM_CONFIG[curE]) fExam.value = curE;
+        else
+          fExam.value = exams.includes("SSC CGL")
+            ? "SSC CGL"
+            : Object.keys(EXAM_CONFIG)[0];
+
+        updateGlobalTierFilter();
+      }
+
+      function updateGlobalTierFilter() {
+        const exam = $("globalFilterExam").value;
+        const fTier = $("globalFilterTier");
+        const curT = fTier.value;
+
+        fTier.innerHTML = ""; // Removed "All Tiers"
+
+        if (exam && EXAM_CONFIG[exam]) {
+          Object.keys(EXAM_CONFIG[exam]).forEach(
+            (t) => (fTier.innerHTML += `<option value="${t}">${t}</option>`),
+          );
+          if (curT && EXAM_CONFIG[exam][curT]) fTier.value = curT;
+          else fTier.value = Object.keys(EXAM_CONFIG[exam])[0];
+        }
+
+        updateTopBarStatus();
+        buildFormTable();
+        loadGlobalTarget();
+      }
+
+      function updateTopBarStatus() {
+        const ex = $("globalFilterExam").value;
+        const ti = $("globalFilterTier").value;
+        const st = $("activeExamDisplay");
+        st.innerText = `Current: ${ex} - ${ti}`;
+      }
+
+      // --- TARGET SCORE ENGINE ---
+      function getTargetKey() {
+        const ex = $("globalFilterExam").value;
+        const ti = $("globalFilterTier").value;
+        return `sscTarget_${ex}_${ti}`;
+      }
+
+      function loadGlobalTarget() {
+        const key = getTargetKey();
+        let t = localStorage.getItem(key);
+        if (!t) t = localStorage.getItem("sscGlobalTarget") || 150; // Fallback
+
+        if ($("globalTargetInp")) $("globalTargetInp").value = t;
+      }
+
+      function updateGlobalTarget() {
+        const val = parseFloat($("globalTargetInp").value) || 150;
+        localStorage.setItem(getTargetKey(), val);
+        updateDashboard();
+      }
+
+      // --- DYNAMIC FORM GENERATION ---
+      function updateMockTypeUI() {
+        const type = $("mType").value;
+        const selector = $("mSection");
+        selector.disabled = type !== "sectional";
+        const active = type === "sectional" ? selector.value : "";
+        document.querySelectorAll("#formTableBody tr[data-section]").forEach(row => {
+          row.hidden = !!active && row.dataset.section !== active;
+          if (type === "sectional" && !active) row.hidden = true;
+        });
+        liveCalculate();
+      }
+      function syncMockSections() {
+        const selector = $("mSection");
+        const previous = selector.value;
+        const exam = $("globalFilterExam").value, tier = $("globalFilterTier").value;
+        const sections = EXAM_CONFIG[exam]?.[tier]?.sections || [];
+        selector.replaceChildren(new Option("Select subject", ""));
+        sections.forEach(sec => selector.add(new Option(sec.name, sec.id)));
+        if (sections.some(sec => sec.id === previous)) selector.value = previous;
+        updateMockTypeUI();
+      }
+
+      function buildFormTable() {
+        const exam = $("globalFilterExam").value;
+        const tier = $("globalFilterTier").value;
+        const tbody = $("formTableBody");
+
+        if (!exam || !tier || !EXAM_CONFIG[exam] || !EXAM_CONFIG[exam][tier]) {
+          tbody.innerHTML = `<tr><td colspan="4" style="text-align:center; padding: 20px; color: var(--muted);">⚠️ Setup an Exam and Tier to add data.</td></tr>`;
+          $("submitBtn").disabled = true;
+          $("submitBtn").style.opacity = 0.5;
+          $("liveScore").style.opacity = 0.5;
+          return;
+        }
+
+        $("submitBtn").disabled = false;
+        $("submitBtn").style.opacity = 1;
+        $("liveScore").style.opacity = 1;
+        tbody.innerHTML = "";
+
+        const sections = EXAM_CONFIG[exam][tier].sections;
+        sections.forEach((sec, idx) => {
+          const color = UI_COLORS[idx % UI_COLORS.length];
+          const qualBadge =
+            sec.type === "qualifying"
+              ? `<span class="qualifying-badge">Qualifying</span>`
+              : "";
+          tbody.innerHTML += `
+                <tr data-section="${sec.id}">
+                  <td class="row-lbl" style="color: ${color}">${sec.name} ${qualBadge}</td>
+                  <td><input type="number" id="c_${sec.id}" min="0" max="${sec.qs}" placeholder="0" oninput="liveCalculate()" /></td>
+                  <td><input type="number" id="w_${sec.id}" min="0" max="${sec.qs}" placeholder="0" oninput="liveCalculate()" /></td>
+                  <td><input type="number" id="t_${sec.id}" min="0" placeholder="0" /></td>
+                </tr>
+              `;
+        });
+        syncMockSections();
+      }
+
+      function liveCalculate() {
+        const exam = $("globalFilterExam").value;
+        const tier = $("globalFilterTier").value;
+        if (!exam || !tier || !EXAM_CONFIG[exam] || !EXAM_CONFIG[exam][tier]) {
+          $("lsMain").innerText = "Total: 0";
+          if ($("lsQual")) $("lsQual").style.display = "none";
+          return;
+        }
+
+        let tMain = 0,
+          tQual = 0;
+
+        EXAM_CONFIG[exam][tier].sections.forEach((sec) => {
+          const c = parseFloat($(`c_${sec.id}`).value) || 0;
+          const w = parseFloat($(`w_${sec.id}`).value) || 0;
+          const score = c * Math.abs(sec.pos) - w * Math.abs(sec.neg);
+
+          if (sec.type === "main") tMain += score;
+          else if (sec.type === "qualifying") tQual += score;
+        });
+
+        $("lsMain").innerText = `Total: ${tMain.toFixed(2)}`;
+        if ($("lsQual")) {
+          if (tQual > 0) {
+            $("lsQual").style.display = "block";
+            $("lsQual").innerText = `Qualifying Score: ${tQual.toFixed(2)}`;
+          } else {
+            $("lsQual").style.display = "none";
+          }
+        }
+      }
+
+      // --- DATA MANAGEMENT & MIGRATION ---
+      let db = JSON.parse(localStorage.getItem("sscScores_Analytics")) || [];
+
+      db = db.map((mock) => {
+        if (!mock.exam) {
+          mock.exam = "SSC CGL";
+          mock.tier = "Pre";
+          const d = mock.data;
+          mock.data = {
+            reas: d.R || { c: 0, w: 0, t: 0 },
+            gk: d.G || { c: 0, w: 0, t: 0 },
+            quant: d.Q || { c: 0, w: 0, t: 0 },
+            eng: d.E || { c: 0, w: 0, t: 0 },
+          };
+        }
+
+        if (EXAM_CONFIG[mock.exam] && EXAM_CONFIG[mock.exam][mock.tier]) {
+          let recalcMain = 0;
+          EXAM_CONFIG[mock.exam][mock.tier].sections.forEach((sec) => {
+            if (sec.type === "main" && mock.data[sec.id]) {
+              const d = mock.data[sec.id];
+              recalcMain += d.c * Math.abs(sec.pos) - d.w * Math.abs(sec.neg);
+            }
+          });
+          mock.totalScore = parseFloat(recalcMain.toFixed(2));
+        }
+
+        mock.perc = mock.perc || 0;
+        mock.level = mock.level || "Moderate";
+        return mock;
+      });
+      localStorage.setItem("sscScores_Analytics", JSON.stringify(db));
+
+      // --- PROVIDERS ---
+      let providers = JSON.parse(localStorage.getItem("sscProviders")) || [
+        "Testbook",
+        "Oliveboard",
+        "RBE",
+        "ProMocks",
+        "TestRanking",
+      ];
+      function renderProviders() {
+        const mProv = $("mProv"),
+          filterProv = $("filterProv");
+        const curM = mProv ? mProv.value : null;
+        const curF = filterProv ? filterProv.value : null;
+
+        if (mProv) mProv.innerHTML = "";
+        if (filterProv)
+          filterProv.innerHTML = '<option value="All">All Providers</option>';
+        providers.forEach((p) => {
+          if (mProv) mProv.innerHTML += `<option value="${p}">${p}</option>`;
+          if (filterProv)
+            filterProv.innerHTML += `<option value="${p}">${p}</option>`;
+        });
+        if (mProv)
+          mProv.innerHTML += `<option value="ADD_NEW" style="font-weight:bold; color:var(--accent);">+ Add Custom...</option>`;
+        if (mProv && providers.includes(curM)) mProv.value = curM;
+        if (filterProv && providers.includes(curF)) filterProv.value = curF;
+      }
+
+      function checkAddProvider(selectElem) {
+        if (selectElem.value === "ADD_NEW") {
+          let newP = prompt("Enter new mock provider name:");
+          if (newP && newP.trim() && !providers.includes(newP.trim())) {
+            providers.push(newP.trim());
+            localStorage.setItem("sscProviders", JSON.stringify(providers));
+            renderProviders();
+            selectElem.value = newP.trim();
+          } else renderProviders();
+        }
+      }
+
+      // --- INITIAL BOOTSTRAP ---
+      initTheme();
+      initExamDropdowns();
+      restoreExamSelection();
+      renderProviders();
+      populateDeleteExamDropdown();
+      $("mDate").valueAsDate = new Date();
+
+      function saveApiKey(val) {
+        localStorage.setItem("ssc_gemini_api_key", val);
+      }
+      const savedGeminiKey = localStorage.getItem("ssc_gemini_api_key");
+      if (savedGeminiKey && $("geminiApiKey"))
+        $("geminiApiKey").value = savedGeminiKey;
+
+      function toggleForm() {
+        const f = $("scoreFormWrapper"),
+          icon = $("formIcon");
+        const isHidden = f.style.display === "none";
+        f.style.display = isHidden ? "block" : "none";
+        icon.innerText = isHidden ? "▼" : "▶";
+      }
+
+      // --- AI SCREENSHOT EXTRACTION (REAL GEMINI API) ---
+      async function handleScreenshotUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const apiKey = $("geminiApiKey").value.trim();
+        if (!apiKey) {
+          alert("Please enter your Gemini API Key in the Settings menu first.");
+          event.target.value = "";
+          return;
+        }
+
+        const loadingText = $("aiLoading");
+        loadingText.style.display = "block";
+        loadingText.innerText =
+          "⏳ Extracting data with Gemini AI... Please wait.";
+
+        const reader = new FileReader();
+        reader.onload = async function (e) {
+          const base64Image = e.target.result.split(",")[1];
+          const mimeType = file.type;
+
+          const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`;
+
+          const promptText = `Analyze this exam mock test scorecard screenshot. Extract the following details and return ONLY a raw, valid JSON object (no markdown, no backticks, no code blocks):
+            {
+              "percentile": number (or 0 if not found),
+              "cutoff": number (or null if not found),
+              "sections": [
+                {
+                  "subject": "Subject name as written in image",
+                  "correct": number,
+                  "wrong": number,
+                  "time": number (time spent in minutes)
+                }
+              ]
+            }`;
+
+          try {
+            const response = await fetch(url, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [
+                      { text: promptText },
+                      {
+                        inline_data: { mime_type: mimeType, data: base64Image },
+                      },
+                    ],
+                  },
+                ],
+              }),
+            });
+
+            if (!response.ok) throw new Error("API Request Failed");
+
+            const data = await response.json();
+
+            let aiText = data.candidates[0].content.parts[0].text.trim();
+            aiText = aiText
+              .replace(/^```json/i, "")
+              .replace(/^```/, "")
+              .replace(/```$/i, "")
+              .trim();
+
+            const extractedData = JSON.parse(aiText);
+
+            if (extractedData.percentile && $("mPerc"))
+              $("mPerc").value = extractedData.percentile;
+            if (extractedData.cutoff && $("mCutoff"))
+              $("mCutoff").value = extractedData.cutoff;
+
+            const exam = $("globalFilterExam").value;
+            const tier = $("globalFilterTier").value;
+            const currentSections = EXAM_CONFIG[exam][tier].sections;
+
+            if (extractedData.sections && extractedData.sections.length > 0) {
+              currentSections.forEach((sec) => {
+                const match = extractedData.sections.find(
+                  (s) =>
+                    s.subject
+                      .toLowerCase()
+                      .includes(sec.name.toLowerCase().substring(0, 4)) ||
+                    sec.name
+                      .toLowerCase()
+                      .includes(s.subject.toLowerCase().substring(0, 4)),
+                );
+
+                if (match) {
+                  if ($(`c_${sec.id}`))
+                    $(`c_${sec.id}`).value = match.correct || 0;
+                  if ($(`w_${sec.id}`))
+                    $(`w_${sec.id}`).value = match.wrong || 0;
+                  if ($(`t_${sec.id}`))
+                    $(`t_${sec.id}`).value = match.time || 0;
+                }
+              });
+            }
+
+            liveCalculate();
+            loadingText.innerText = "✅ Extraction Complete!";
+            loadingText.style.color = "var(--green)";
+            setTimeout(() => {
+              loadingText.style.display = "none";
+              loadingText.style.color = "var(--accent)";
+            }, 4000);
+          } catch (error) {
+            console.error("Gemini Extraction Error:", error);
+            loadingText.innerText =
+              "❌ Error extracting data. Check your API key and try again.";
+            loadingText.style.color = "var(--red)";
+            setTimeout(() => {
+              loadingText.style.display = "none";
+              loadingText.style.color = "var(--accent)";
+            }, 4000);
+          }
+
+          event.target.value = "";
+        };
+        reader.readAsDataURL(file);
+      }
+
+      // --- FORM SUBMISSION ---
+      $("scoreForm").addEventListener("submit", (e) => {
+        e.preventDefault();
+        const exam = $("globalFilterExam").value;
+        const tier = $("globalFilterTier").value;
+
+        if (!exam || !tier) {
+          alert(
+            "Please select an Exam and Tier from the top header to save data.",
+          );
+          return;
+        }
+
+        const sections = EXAM_CONFIG[exam][tier].sections;
+        if ($("mType").value === "sectional" && !$("mSection").value) {
+          alert("Select a subject for the sectional mock.");
+          $("mSection").focus();
+          return;
+        }
+
+        const mockData = {
+          id: editMockId || Date.now(),
+          date: $("mDate").value,
+          prov: $("mProv").value,
+          level: $("mLevel").value,
+          name: $("mName").value,
+          link: $("mLink").value.trim(),
+          mockType: $("mType").value,
+          mockSection: $("mType").value === "sectional" ? $("mSection").value : null,
+          perc: parseFloat($("mPerc").value) || 0,
+          cutoff: parseFloat($("mCutoff").value) || null,
+          exam: exam,
+          tier: tier,
+          data: {},
+        };
+
+        let tC = 0,
+          tW = 0,
+          tT = 0,
+          scoreMain = 0;
+        sections.forEach((sec) => {
+          const included = mockData.mockType !== "sectional" || sec.id === mockData.mockSection;
+          const c = included ? (parseFloat($(`c_${sec.id}`).value) || 0) : 0;
+          const w = included ? (parseFloat($(`w_${sec.id}`).value) || 0) : 0;
+          const t = included ? (parseFloat($(`t_${sec.id}`).value) || 0) : 0;
+          mockData.data[sec.id] = { c, w, t };
+
+          if (sec.type === "main") {
+            tC += c;
+            tW += w;
+            tT += t;
+            scoreMain += c * Math.abs(sec.pos) - w * Math.abs(sec.neg);
+          }
+        });
+
+        mockData.tCor = tC;
+        mockData.tWro = tW;
+        mockData.tTime = tT;
+        mockData.totalScore = parseFloat(scoreMain.toFixed(2));
+
+        if (editMockId) {
+          const idx = db.findIndex((m) => m.id === editMockId);
+          if (idx > -1) db[idx] = mockData;
+          editMockId = null;
+          $("submitBtn").innerText = "Save Analytics";
+          $("cancelEditBtn").style.display = "none";
+        } else {
+          db.push(mockData);
+        }
+
+        localStorage.setItem("sscScores_Analytics", JSON.stringify(db));
+
+        sections.forEach((sec) => {
+          $(`c_${sec.id}`).value = "";
+          $(`w_${sec.id}`).value = "";
+          $(`t_${sec.id}`).value = "";
+        });
+        ["mPerc", "mCutoff", "mName", "mLink"].forEach((id) => ($(id).value = ""));
+        $("mLevel").value = "Moderate";
+        $("mType").value = "full";
+        $("mSection").value = "";
+        updateMockTypeUI();
+        $("mDate").valueAsDate = new Date();
+        $("lsMain").innerText = "Total: 0";
+        if ($("lsQual")) $("lsQual").style.display = "none";
+
+        updateDashboard();
+      });
+
+      window.editMock = (id) => {
+        const mock = db.find((m) => m.id === id);
+        if (!mock) return;
+        editMockId = mock.id;
+
+        $("globalFilterExam").value = mock.exam || "SSC CGL";
+        updateGlobalTierFilter();
+        $("globalFilterTier").value = mock.tier || "Pre";
+        updateTopBarStatus();
+        buildFormTable();
+        $("mType").value = mock.mockType || "full";
+        $("mSection").value = mock.mockSection || "";
+        updateMockTypeUI();
+
+        $("mDate").value = mock.date;
+        if (!providers.includes(mock.prov)) {
+          providers.push(mock.prov);
+          localStorage.setItem("sscProviders", JSON.stringify(providers));
+          renderProviders();
+        }
+        $("mProv").value = mock.prov;
+        $("mLevel").value = mock.level || "Moderate";
+        $("mName").value = mock.name;
+        $("mLink").value = mock.link || "";
+        $("mPerc").value = mock.perc || "";
+        $("mCutoff").value = mock.cutoff || "";
+
+        const sections =
+          EXAM_CONFIG[mock.exam || "SSC CGL"][mock.tier || "Pre"].sections;
+        sections.forEach((sec) => {
+          if (mock.data[sec.id]) {
+            $(`c_${sec.id}`).value = mock.data[sec.id].c || "";
+            $(`w_${sec.id}`).value = mock.data[sec.id].w || "";
+            $(`t_${sec.id}`).value = mock.data[sec.id].t || "";
+          }
+        });
+
+        liveCalculate();
+        $("submitBtn").innerText = "Update Analytics";
+        $("cancelEditBtn").style.display = "block";
+        if (window.navigateTo) window.navigateTo("add");
+        else if ($("scoreFormWrapper").style.display === "none") toggleForm();
+        $("mDate").scrollIntoView({ behavior: "smooth", block: "center" });
+      };
+
+      window.cancelEdit = () => {
+        editMockId = null;
+        $("scoreForm").reset();
+        updateMockTypeUI();
+        $("mDate").valueAsDate = new Date();
+        $("mLevel").value = "Moderate";
+        $("submitBtn").innerText = "Save Analytics";
+        $("cancelEditBtn").style.display = "none";
+        liveCalculate();
+      };
+
+      // --- MOCK MODAL (DYNAMIC) ---
+      window.openAnalysisModal = (id) => {
+        const mock = db.find((m) => m.id === id);
+        if (!mock) return;
+
+        const isLight =
+          document.documentElement.getAttribute("data-theme") === "light";
+        $("modStatsBg").style.background = isLight
+          ? "rgba(15, 23, 42, 0.05)"
+          : "rgba(15, 23, 42, 0.5)";
+
+        $("modNameTitle").innerText = mock.name;
+        const lvlCol =
+          mock.level === "Hard"
+            ? "var(--red)"
+            : mock.level === "Easy"
+              ? "var(--green)"
+              : "var(--yellow)";
+        let subHTML = `${mock.date} &nbsp;&bull;&nbsp; ${mock.exam} (${mock.tier}) &nbsp;&bull;&nbsp; ${mock.prov} &nbsp;&bull;&nbsp; <span style="color:${lvlCol}">${mock.level || "Moderate"}</span>`;
+        $("modSubTitle").innerHTML = subHTML;
+
+        $("modTotalScore").innerText = mock.totalScore;
+        $("modAccuracy").innerText =
+          mock.tCor + mock.tWro > 0
+            ? Math.round((mock.tCor / (mock.tCor + mock.tWro)) * 100) + "%"
+            : "0%";
+        $("modPercentile").innerText = mock.perc > 0 ? mock.perc + "%" : "N/A";
+
+        const cutEl = $("modCutoffStatus");
+        if (mock.cutoff) {
+          cutEl.innerText =
+            mock.totalScore >= mock.cutoff ? "Cleared ✅" : "Missed ❌";
+          cutEl.style.color =
+            mock.totalScore >= mock.cutoff ? "var(--green)" : "var(--red)";
+        } else {
+          cutEl.innerText = "No Cut-off";
+          cutEl.style.color = "var(--muted)";
+        }
+
+        const sections = EXAM_CONFIG[mock.exam][mock.tier].sections;
+        const grid = $("modalSpeedometers");
+        grid.innerHTML = "";
+
+        let qualSection = null;
+        let qualScore = 0;
+
+        sections.forEach((sec, idx) => {
+          const color = UI_COLORS[idx % UI_COLORS.length];
+          const d = mock.data[sec.id] || { c: 0, w: 0, t: 0 };
+          const score = d.c * Math.abs(sec.pos) - d.w * Math.abs(sec.neg);
+
+          if (sec.type === "qualifying") {
+            qualSection = sec;
+            qualScore = score;
+          }
+
+          grid.innerHTML += `
+                <div class="speedometer-box">
+                    <div style="font-weight: bold; color: ${color}; margin-bottom: 10px;">${sec.name} ${sec.type === "qualifying" ? "(Qual)" : ""}</div>
+                    <div style="position: relative; height: 120px">
+                        <canvas id="gauge_${sec.id}"></canvas>
+                        <div style="position: absolute; bottom: 5px; width: 100%; text-align: center; font-size: 1.4rem; font-weight: bold; color: var(--text);">${score.toFixed(2)}</div>
+                    </div>
+                    <div style="margin-top: 15px; font-size: 0.85rem; color: var(--muted); display: flex; justify-content: space-between;">
+                        <span>Cor: <strong style="color: var(--green)">${d.c}</strong></span>
+                        <span>Wro: <strong style="color: var(--red)">${d.w}</strong></span>
+                    </div>
+                    <div style="margin-top: 5px; font-size: 0.85rem; color: var(--muted); display: flex; justify-content: space-between;">
+                        <span>Time: <strong style="color: var(--text)">${d.t}m</strong></span>
+                        <span title="Marks Per Minute">ROI: <strong style="color: var(--text)">${d.t > 0 ? (score / d.t).toFixed(1) : "0"}</strong></span>
+                    </div>
+                </div>
+            `;
+        });
+
+        sections.forEach((sec, idx) => {
+          const color = UI_COLORS[idx % UI_COLORS.length];
+          const d = mock.data[sec.id] || { c: 0, w: 0 };
+          const score = d.c * Math.abs(sec.pos) - d.w * Math.abs(sec.neg);
+          const maxScore = sec.qs * Math.abs(sec.pos);
+          const disp = Math.max(0, score);
+
+          if (modalCharts[sec.id]) modalCharts[sec.id].destroy();
+          const gaugeBg = isLight
+            ? "rgba(0,0,0,0.05)"
+            : "rgba(255,255,255,0.05)";
+
+          const ctx = $(`gauge_${sec.id}`).getContext("2d");
+          modalCharts[sec.id] = new Chart(ctx, {
+            type: "doughnut",
+            data: {
+              datasets: [
+                {
+                  data: [disp, Math.max(0, maxScore - disp)],
+                  backgroundColor: [color, gaugeBg],
+                  borderWidth: 0,
+                },
+              ],
+            },
+            options: {
+              rotation: 270,
+              circumference: 180,
+              cutout: "75%",
+              plugins: { tooltip: { enabled: false } },
+              maintainAspectRatio: false,
+            },
+          });
+        });
+
+        const qualC = $("modQualContainer");
+        if (qualSection) {
+          qualC.style.display = "block";
+          $("modQualTitle").innerText = `${qualSection.name} (Qualifying)`;
+          if (qualScore >= qualSection.qualMarks) {
+            $("modQualStatus").innerText = "Passed ✅";
+            $("modQualStatus").style.color = "var(--green)";
+          } else {
+            $("modQualStatus").innerText = "Failed ❌";
+            $("modQualStatus").style.color = "var(--red)";
+          }
+        } else {
+          qualC.style.display = "none";
+        }
+
+        $("analysisModal").style.display = "flex";
+      };
+
+      window.closeAnalysisModal = () =>
+        ($("analysisModal").style.display = "none");
+
+      // --- DATA EXPORT / IMPORT ---
+      window.exportJSON = () => {
+        const dataStr =
+          "data:text/json;charset=utf-8," +
+          encodeURIComponent(JSON.stringify(db));
+        const a = document.createElement("a");
+        a.href = dataStr;
+        a.download = "universal_mock_backup.json";
+        a.click();
+      };
+
+      window.importJSON = (e) => {
+        const file = e.target.files[0];
+        if (!file) return;
+        const r = new FileReader();
+        r.onload = (ev) => {
+          try {
+            const newDb = JSON.parse(ev.target.result);
+            if (
+              Array.isArray(newDb) &&
+              confirm("This will overwrite existing data. Proceed?")
+            ) {
+              db = newDb;
+              localStorage.setItem("sscScores_Analytics", JSON.stringify(db));
+              updateDashboard();
+              alert("Backup Restored Successfully!");
+            }
+          } catch (err) {
+            alert("Invalid JSON file");
+          }
+          e.target.value = "";
+        };
+        r.readAsText(file);
+      };
+
+      // --- RENDER LOGIC ---
+      function updateAnalyticsMode() {
+        const sectional = $("analyticsMode").value === "sectional";
+        $("analyticsSubjectGroup").style.display = sectional ? "flex" : "none";
+        updateDashboard();
+      }
+      function syncAnalyticsSubjects(exam, tier) {
+        const selector = $("analyticsSubject");
+        const previous = selector.value;
+        const sections = EXAM_CONFIG[exam]?.[tier]?.sections || [];
+        const signature = exam + "|" + tier + "|" + sections.map(s => s.id).join(",");
+        if (selector.dataset.signature !== signature) {
+          selector.innerHTML = "";
+          sections.forEach(sec => {
+            const option = document.createElement("option");
+            option.value = sec.id;
+            option.textContent = sec.name;
+            selector.appendChild(option);
+          });
+          selector.dataset.signature = signature;
+          if (sections.some(s => s.id === previous)) selector.value = previous;
+        }
+      }
+      function isSubjectAttempt(mock, id) {
+        return mock.mockType !== "sectional" || mock.mockSection === id;
+      }
+      function subjectScore(mock, section) {
+        const d = mock.data?.[section.id];
+        return d ? (Number(d.c) || 0) * Math.abs(section.pos) - (Number(d.w) || 0) * Math.abs(section.neg) : 0;
+      }
+      function renderSubjectStats(records, section) {
+        $("st-total").innerText = records.length;
+        const scores = records.map(m => subjectScore(m, section));
+        const avg = arr => arr.length ? (arr.reduce((a,b) => a+b, 0) / arr.length).toFixed(1) : "0";
+        $("st-avg").innerText = avg(scores);
+        $("st-recent").innerText = avg(scores.slice(-5));
+        let correct = 0, attempted = 0;
+        records.forEach(m => {
+          const d = m.data?.[section.id] || {};
+          correct += Number(d.c) || 0;
+          attempted += (Number(d.c) || 0) + (Number(d.w) || 0);
+        });
+        $("st-acc").innerText = attempted ? Math.round(correct / attempted * 100) + "%" : "0%";
+        // Percentiles are exam-wide and not subject-specific; do not mislabel them.
+        $("st-perc").innerText = "—";
+        const labels = document.querySelectorAll("#view-analytics .stat-lbl");
+      }
+      function renderSubjectTrend(records, section) {
+        if (chartsData.main) chartsData.main.destroy();
+        if (!records.length) return;
+        const light = document.documentElement.getAttribute("data-theme") === "light";
+        chartsData.main = new Chart($("mainChart").getContext("2d"), {
+          type: "line",
+          data: { labels: records.map(m => m.name), datasets: [{
+            label: section.name + " Score", data: records.map(m => subjectScore(m, section)),
+            borderColor: "#38bdf8", backgroundColor: "rgba(56,189,248,.12)",
+            borderWidth: 3, fill: true, tension: .3
+          }]},
+          options: {responsive:true, maintainAspectRatio:false, scales:{
+            y:{grid:{color:light ? "#e2e8f0" : "#334155"}}, x:{grid:{display:false}}
+          }}
+        });
+      }
+      function updateDashboard() {
+        db.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        updateTopBarStatus();
+
+        const fExam = $("globalFilterExam").value;
+        const fTier = $("globalFilterTier").value;
+        const fProv = $("filterProv").value;
+
+        let filteredDb = db;
+        if (fExam !== "All")
+          filteredDb = filteredDb.filter((m) => m.exam === fExam);
+        if (fTier !== "All")
+          filteredDb = filteredDb.filter((m) => m.tier === fTier);
+        if (fProv !== "All")
+          filteredDb = filteredDb.filter((m) => m.prov === fProv);
+
+        syncAnalyticsSubjects(fExam, fTier);
+        const sectionalMode = $("analyticsMode").value === "sectional";
+        const section = EXAM_CONFIG[fExam]?.[fTier]?.sections?.find(s => s.id === $("analyticsSubject").value);
+        const subjectDb = sectionalMode && section ? filteredDb.filter(m =>
+          isSubjectAttempt(m, section.id) && m.data && m.data[section.id]
+        ) : [];
+        if (sectionalMode && section) {
+          renderSubjectStats(subjectDb, section);
+          renderHistory(subjectDb);
+          $("sectionalWarning").style.display = "none";
+          $("dynamicSectionalData").style.display = "block";
+          $("sectionChartCard").style.display = "none";
+          renderSectionalDash(subjectDb, fExam, fTier, section.id);
+          renderSubjectTrend(subjectDb, section);
+          $("mainTrendHeading").textContent = section.name + " Score Trend";
+          $("analyticsPercentileLabel").textContent = "Percentile (N/A)";
+          return;
+        }
+        $("mainTrendHeading").textContent = "Overall Score Trend";
+        $("analyticsPercentileLabel").textContent = "Avg Percentile";
+        renderOverallStats(filteredDb);
+        renderHistory(filteredDb);
+
+        if (
+          !fExam ||
+          !fTier ||
+          !EXAM_CONFIG[fExam] ||
+          !EXAM_CONFIG[fExam][fTier]
+        ) {
+          $("sectionalWarning").style.display = "block";
+          $("dynamicSectionalData").style.display = "none";
+          $("sectionChartCard").style.display = "none";
+          renderTotalTrendChart(filteredDb);
+        } else {
+          $("sectionalWarning").style.display = "none";
+          $("dynamicSectionalData").style.display = "block";
+          $("sectionChartCard").style.display = "block";
+          renderSectionalDash(filteredDb, fExam, fTier);
+          renderTotalTrendChart(filteredDb);
+        }
+      }
+
+      function renderOverallStats(fDb) {
+        $("st-total").innerText = fDb.length;
+        if (!fDb.length) {
+          ["st-avg", "st-recent"].forEach((id) => ($(id).innerText = "0"));
+          ["st-acc", "st-perc"].forEach((id) => ($(id).innerText = "0%"));
+          return;
+        }
+
+        let tSum = 0,
+          tPerc = 0,
+          vPerc = 0,
+          tAtt = 0,
+          tCor = 0;
+        fDb.forEach((m) => {
+          tSum += m.totalScore;
+          if (m.perc > 0) {
+            tPerc += m.perc;
+            vPerc++;
+          }
+          tAtt += m.tCor + m.tWro;
+          tCor += m.tCor;
+        });
+
+        $("st-avg").innerText = (tSum / fDb.length).toFixed(1);
+        $("st-perc").innerText =
+          vPerc > 0 ? (tPerc / vPerc).toFixed(1) + "%" : "0%";
+        $("st-acc").innerText =
+          tAtt > 0 ? Math.round((tCor / tAtt) * 100) + "%" : "0%";
+
+        const recDb = fDb.slice(-5);
+        let rSum = 0;
+        recDb.forEach((m) => (rSum += m.totalScore));
+        $("st-recent").innerText =
+          recDb.length > 0 ? (rSum / recDb.length).toFixed(1) : "0";
+      }
+
+      function renderSectionalDash(fDb, exam, tier, selectedSectionId = null) {
+        const config = EXAM_CONFIG[exam][tier];
+        const len = fDb.length;
+        const recDb = fDb.slice(-5);
+
+        const saGrid = $("saGrid");
+        saGrid.innerHTML = "";
+        const timeGrid = $("timeGrid");
+        timeGrid.innerHTML = "";
+        const accContainer = $("accSkipContainer");
+        accContainer.innerHTML = "";
+
+        let datasetsLine = [];
+
+        config.sections.filter(sec => !selectedSectionId || sec.id === selectedSectionId).forEach((sec) => {
+          const idx = config.sections.indexOf(sec);
+          const color = UI_COLORS[idx % UI_COLORS.length];
+
+          let sTot = 0,
+            rTot = 0,
+            tTime = 0,
+            tC = 0,
+            tAtt = 0,
+            validTimeCount = 0;
+          let lineData = [];
+
+          const secRecords = fDb.filter(m => isSubjectAttempt(m, sec.id) && m.data?.[sec.id]);
+          const recentSecRecords = secRecords.slice(-5);
+          secRecords.forEach((m) => {
+            const d = m.data[sec.id] || { c: 0, w: 0, t: 0 };
+            const score = d.c * Math.abs(sec.pos) - d.w * Math.abs(sec.neg);
+            sTot += score;
+            if (d.t > 0) {
+              tTime += d.t;
+              validTimeCount++;
+            }
+            tC += d.c;
+            tAtt += d.c + d.w;
+            lineData.push(score);
+          });
+
+          recentSecRecords.forEach((m) => {
+            const d = m.data[sec.id] || { c: 0, w: 0 };
+            rTot += d.c * Math.abs(sec.pos) - d.w * Math.abs(sec.neg);
+          });
+
+          const avgAll = secRecords.length ? (sTot / secRecords.length).toFixed(1) : "0.0";
+          const avgR = recentSecRecords.length ? (rTot / recentSecRecords.length).toFixed(1) : "0.0";
+          const avgT =
+            validTimeCount > 0 ? Math.round(tTime / validTimeCount) : "0";
+          const acc = tAtt > 0 ? Math.round((tC / tAtt) * 100) : 0;
+          const skip =
+            secRecords.length ? Math.max(0, sec.qs - tAtt / secRecords.length).toFixed(1) : sec.qs;
+
+          saGrid.innerHTML += `<div class="sec-stat-box" style="border-top-color: ${color}"><div class="sec-title" style="color: ${color}">${sec.name} ${sec.type === "qualifying" ? "(Q)" : ""}</div><div class="sec-scores"><div><div class="sec-val">${avgAll}</div><div class="sec-lbl">Overall</div></div><div><div class="sec-val">${avgR}</div><div class="sec-lbl">Last 5</div></div></div></div>`;
+          timeGrid.innerHTML += `<div class="time-badge"><span>${sec.name}</span><div class="time-val-text" style="color: ${color}">${avgT}m</div></div>`;
+          accContainer.innerHTML += `<div class="acc-skip-row"><div class="as-header"><span style="color: ${color}">${sec.name}</span><div class="as-stats"><span>Acc: <strong>${acc}%</strong></span><span>Skip: <strong>${skip}/${sec.qs}</strong></span></div></div><div class="progress-bg"><div class="progress-fill" style="width: ${acc}%; background: ${color}"></div></div></div>`;
+
+          datasetsLine.push({
+            label: sec.name,
+            data: fDb.map(m => isSubjectAttempt(m, sec.id) && m.data?.[sec.id] ? subjectScore(m, sec) : null),
+            borderColor: color,
+            tension: 0.3,
+          });
+        });
+
+        if (chartsData.sec) chartsData.sec.destroy();
+        const isLight =
+          document.documentElement.getAttribute("data-theme") === "light";
+        const labels = fDb.map((m) => m.name);
+        chartsData.sec = new Chart($("sectionChart").getContext("2d"), {
+          type: "line",
+          data: { labels, datasets: datasetsLine },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { grid: { color: isLight ? "#e2e8f0" : "#334155" } },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      function renderTotalTrendChart(fDb) {
+        if (chartsData.main) chartsData.main.destroy();
+        if (!fDb.length) return;
+
+        const isLight =
+          document.documentElement.getAttribute("data-theme") === "light";
+        const gridColor = isLight ? "#e2e8f0" : "#334155";
+        const labels = fDb.map((m) => m.name);
+
+        const cssAccent =
+          getComputedStyle(document.documentElement)
+            .getPropertyValue("--accent")
+            .trim() || "#38bdf8";
+
+        let targetVal = parseFloat(localStorage.getItem(getTargetKey())) || 150;
+
+        chartsData.main = new Chart($("mainChart").getContext("2d"), {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "Total Score",
+                data: fDb.map((m) => m.totalScore),
+                borderColor: cssAccent,
+                backgroundColor: "rgba(56, 189, 248, 0.1)",
+                borderWidth: 3,
+                pointBackgroundColor: "#0f172a",
+                pointBorderColor: cssAccent,
+                fill: true,
+                tension: 0.3,
+              },
+              {
+                label: "Target Goal",
+                data: Array(fDb.length).fill(targetVal),
+                borderColor: "#10b981",
+                borderWidth: 2,
+                borderDash: [5, 5],
+                pointRadius: 0,
+                fill: false,
+              },
+              {
+                label: "Mock Cut-off",
+                data: fDb.map((m) => m.cutoff || null),
+                borderColor: "#ef4444",
+                borderWidth: 2,
+                borderDash: [2, 2],
+                pointRadius: 0,
+                fill: false,
+                stepped: true,
+                spanGaps: true,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { grid: { color: gridColor } },
+              x: { grid: { display: false } },
+            },
+          },
+        });
+      }
+
+      function escapeHistoryText(value) {
+        return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+        })[char]);
+      }
+
+      function mockAnalysisUrl(value) {
+        if (!value || typeof value !== "string") return "";
+        try {
+          const url = new URL(value.trim());
+          return ["https:", "http:"].includes(url.protocol) ? url.href : "";
+        } catch { return ""; }
+      }
+
+      window.openMockAnalysisLink = (id) => {
+        const mock = db.find((m) => m.id === id);
+        const url = mockAnalysisUrl(mock?.link);
+        if (!url) return;
+        window.open(url, "_blank", "noopener,noreferrer");
+      };
+
+      function renderHistory(fDb) {
+        const div = $("historyList");
+        if (!fDb.length) {
+          div.innerHTML = '<div style="color:var(--muted); padding:10px 0;">No mocks found.</div>';
+          return;
+        }
+        div.innerHTML = "";
+        [...fDb].reverse().forEach((m) => {
+          const lvlCol = m.level === "Hard" ? "var(--red)" : m.level === "Easy" ? "var(--green)" : "var(--yellow)";
+          const provider = String(m.prov || "").trim();
+          const name = String(m.name || "").trim();
+          const fullName = provider && !name.toLowerCase().startsWith(provider.toLowerCase())
+            ? `${provider} ${name}` : (name || provider || "Untitled Mock");
+          const link = mockAnalysisUrl(m.link);
+          div.innerHTML += `
+            <div class="hist-item">
+              <div style="min-width:0; flex:1;">
+                <div style="font-weight:bold; font-size:0.9rem; color:var(--text); display:flex; align-items:center; flex-wrap:wrap; gap:5px;">
+                  <span style="overflow-wrap:anywhere;">${escapeHistoryText(fullName)}</span>
+                  <span style="font-size:0.65rem; color:${lvlCol}; border:1px solid ${lvlCol}; padding:2px 6px; border-radius:4px;">${escapeHistoryText(m.level || "Moderate")}</span>
+                </div>
+                <div style="font-size:0.8rem; color:var(--muted); margin-top:4px;">
+                  ${escapeHistoryText(m.date)} &bull; ${m.perc > 0 ? escapeHistoryText(m.perc) + "%ile" : "No %ile Data"}
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:9px; flex-shrink:0; margin-left:8px;">
+                <span style="font-size:1.15rem; font-weight:800; color:var(--accent);">${escapeHistoryText(m.totalScore)}</span>
+                <div style="display:flex; align-items:center; gap:9px;">
+                  ${link ? `<button type="button" class="history-icon-btn" onclick="openMockAnalysisLink(${Number(m.id)})" title="Open original mock analysis in new tab" aria-label="Open original mock analysis">↗</button>` : ""}
+                  <button type="button" class="history-icon-btn" onclick="openAnalysisModal(${Number(m.id)})" title="Analyze Mock" aria-label="Analyze Mock">📊</button>
+                  <button type="button" class="history-icon-btn" onclick="editMock(${Number(m.id)})" title="Edit Mock" aria-label="Edit Mock">✏️</button>
+                  <button type="button" class="history-icon-btn" onclick="deleteMock(${Number(m.id)})" title="Delete Mock" aria-label="Delete Mock">🗑️</button>
+                </div>
+              </div>
+            </div>`;
+        });
+      }
+
+      window.deleteMock = (id) => {
+        if (confirm("Delete this mock data?")) {
+          db = db.filter((m) => m.id !== id);
+          localStorage.setItem("sscScores_Analytics", JSON.stringify(db));
+          if (editMockId === id) cancelEdit();
+          if (db.length === 0) location.reload();
+          else updateDashboard();
+        }
+      };
+
+      // --- CHROME EXTENSION LISTENER ---
+      if (
+        typeof chrome !== "undefined" &&
+        chrome.runtime &&
+        chrome.runtime.onMessage
+      ) {
+        chrome.runtime.onMessage.addListener(
+          (request, sender, sendResponse) => {
+            if (request.action === "FILL_MOCK_DATA") {
+              const data = request.payload;
+
+              // 1. Auto-select Exam and Tier
+              if ($("globalFilterExam") && data.exam) {
+                // Attempt to select the exam, default to SSC CGL if not found
+                let examOptions = Array.from($("globalFilterExam").options).map(
+                  (o) => o.value,
+                );
+                if (examOptions.includes(data.exam))
+                  $("globalFilterExam").value = data.exam;
+                else $("globalFilterExam").value = "SSC CGL";
+
+                updateGlobalTierFilter();
+              }
+              if ($("globalFilterTier") && data.tier) {
+                let tierOptions = Array.from($("globalFilterTier").options).map(
+                  (o) => o.value,
+                );
+                if (tierOptions.includes(data.tier))
+                  $("globalFilterTier").value = data.tier;
+
+                buildFormTable();
+                updateTopBarStatus();
+              }
+
+              // 2. Fill standard form data
+              if ($("mProv") && data.provider) {
+                let provOptions = Array.from($("mProv").options).map(
+                  (o) => o.value,
+                );
+                if (!provOptions.includes(data.provider)) {
+                  providers.push(data.provider);
+                  localStorage.setItem(
+                    "sscProviders",
+                    JSON.stringify(providers),
+                  );
+                  renderProviders();
+                }
+                $("mProv").value = data.provider;
+              }
+              if ($("mPerc")) $("mPerc").value = data.percentile || "";
+              if ($("mCutoff")) $("mCutoff").value = data.cutoff || "";
+
+              // 3. Fill dynamic section data
+              if (data.sections) {
+                data.sections.forEach((sec) => {
+                  if ($(`c_${sec.id}`)) $(`c_${sec.id}`).value = sec.c || 0;
+                  if ($(`w_${sec.id}`)) $(`w_${sec.id}`).value = sec.w || 0;
+                  if ($(`t_${sec.id}`)) $(`t_${sec.id}`).value = sec.t || 0;
+                });
+              }
+
+              liveCalculate();
+
+              // Pop open the "Add Mock" drawer if it's hidden
+              const form = $("scoreForm");
+              if (form && form.style.display === "none") toggleForm();
+
+              alert(
+                "✅ Gemini successfully extracted the mock data and filled the form!",
+              );
+              sendResponse({ status: "success" });
+            }
+          },
+        );
+      }
+
+
+      // Extra sidebar features are isolated from existing mock/analytics storage.
+      const EXAM_DATES_KEY = 'pro_mock_exam_dates_v1';
+      const PLAYLISTS_KEY = 'pro_mock_playlists_v1';
+      function safeArray(key){try{const v=JSON.parse(localStorage.getItem(key));return Array.isArray(v)?v:[]}catch{return []}}
+      let examDates=safeArray(EXAM_DATES_KEY),studyPlaylists=safeArray(PLAYLISTS_KEY);
+      let editingExamId=null;
+      function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+      // Playlists can contain thousands of videos; localStorage's small quota is unsuitable.
+      // IndexedDB stores the full library. Legacy localStorage data is migrated only after a successful write.
+      const PLAYLIST_DB_NAME='pro_mock_playlist_database_v1';
+      let playlistStorageReady=false;
+      function openPlaylistDB(){return new Promise((resolve,reject)=>{if(!window.indexedDB)return reject(new Error('IndexedDB is unavailable in this browser.'));const request=indexedDB.open(PLAYLIST_DB_NAME,1);request.onupgradeneeded=()=>{if(!request.result.objectStoreNames.contains('data'))request.result.createObjectStore('data')};request.onsuccess=()=>resolve(request.result);request.onerror=()=>reject(request.error||new Error('Cannot open playlist database'))})}
+      async function playlistDBAction(mode,action){const database=await openPlaylistDB();try{return await new Promise((resolve,reject)=>{const tx=database.transaction('data',mode),store=tx.objectStore('data');let result;const request=action(store);request.onsuccess=()=>{result=request.result};tx.oncomplete=()=>resolve(result);tx.onerror=()=>reject(tx.error||new Error('Playlist database transaction failed'));tx.onabort=()=>reject(tx.error||new Error('Playlist database transaction aborted'))})}finally{database.close()}}
+      let playlistWriteQueue=Promise.resolve();
+      function savePlaylists(){const snapshot=structuredClone(studyPlaylists);const task=playlistWriteQueue.catch(()=>{}).then(()=>playlistDBAction('readwrite',store=>store.put(snapshot,'playlists')));playlistWriteQueue=task;return task.catch(err=>{playlistNotice('Unable to save playlist data: '+err.message);throw err})}
+      function saveExtras(){try{localStorage.setItem(EXAM_DATES_KEY,JSON.stringify(examDates))}catch(err){console.error('Exam date save failed:',err)}return savePlaylists()}
+      async function initializePlaylistStorage(){try{const saved=await playlistDBAction('readonly',store=>store.get('playlists'));if(Array.isArray(saved)){studyPlaylists=saved}else if(studyPlaylists.length){await savePlaylists();localStorage.removeItem(PLAYLISTS_KEY)}playlistStorageReady=true;renderPlaylists()}catch(err){playlistStorageReady=true;console.error('Playlist storage initialization failed:',err);playlistNotice('Playlist database unavailable: '+err.message);renderPlaylists()}}
+      initializePlaylistStorage();
+      function toggleExtra(kind){const body=$(kind+'Body'),arrow=$(kind+'Arrow');body.hidden=!body.hidden;arrow.textContent=body.hidden?'▶':'▼'}
+      function localDay(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate())}
+      function daysUntil(iso){const [y,m,d]=iso.split('-').map(Number);return Math.round((Date.UTC(y,m-1,d)-Date.UTC(localDay().getFullYear(),localDay().getMonth(),localDay().getDate()))/86400000)}
+      function examPalette(days){if(days<0)return ['rgba(100,116,139,.12)','#64748b'];if(days<=10)return ['rgba(239,68,68,.19)','#ef4444'];if(days<=30)return ['rgba(249,115,22,.16)','#f97316'];if(days<=60)return ['rgba(245,158,11,.15)','#f59e0b'];if(days<=100)return ['rgba(6,182,212,.14)','#06b6d4'];return ['rgba(59,130,246,.15)','#3b82f6']}
+      function renderCountdown(){const el=$('countdownList');if(!el)return;el.innerHTML='';const sorted=[...examDates].sort((a,b)=>a.date.localeCompare(b.date));if(!sorted.length){el.innerHTML='<div class="extra-help">No exam dates yet. Add an exam below.</div>';return}sorted.forEach(x=>{const days=daysUntil(x.date),[bg,edge]=examPalette(days);const tile=document.createElement('div');tile.className='exam-tile';tile.style.setProperty('--urgency',bg);tile.style.setProperty('--edge',edge);tile.innerHTML=`<div style="min-width:0;flex:1"><div class="exam-name">${esc(x.name)}</div><div class="exam-date">${esc(new Date(x.date+'T12:00:00').toLocaleDateString(undefined,{day:'numeric',month:'short',year:'numeric'}))}</div><div class="extra-actions"><button class="mini-icon" data-edit title="Edit">✎</button><button class="mini-icon" data-delete title="Delete">🗑</button></div></div><div class="exam-days" style="color:${edge}">${days<0?'Passed':days===0?'Today':days}<small>${days>0?'days left':''}</small></div>`;tile.querySelector('[data-edit]').onclick=()=>showExamForm(x.id);tile.querySelector('[data-delete]').onclick=()=>{if(confirm('Delete this exam countdown?')){examDates=examDates.filter(e=>e.id!==x.id);saveExtras();renderCountdown()}};el.appendChild(tile)})}
+      function showExamForm(id=null){editingExamId=id;const x=examDates.find(e=>e.id===id);$('examCountdownName').value=x?.name||'';$('examCountdownDate').value=x?.date||'';$('examCountdownForm').hidden=false}
+      function hideExamForm(){$('examCountdownForm').hidden=true;editingExamId=null}
+      $('examCountdownForm').addEventListener('submit',e=>{e.preventDefault();const name=$('examCountdownName').value.trim(),date=$('examCountdownDate').value;if(!name||!/^\d{4}-\d{2}-\d{2}$/.test(date))return;if(editingExamId){const x=examDates.find(e=>e.id===editingExamId);if(x){x.name=name;x.date=date}}else examDates.push({id:crypto.randomUUID?.()||String(Date.now()),name,date});saveExtras();hideExamForm();renderCountdown()});
+      function playlistId(url){try{const u=new URL(url);if(!/(^|\.)youtube\.com$/.test(u.hostname)&&!/(^|\.)youtube-nocookie\.com$/.test(u.hostname))return null;return u.searchParams.get('list')}catch{return null}}
+      function videoId(raw){try{const u=new URL(raw);if(u.hostname==='youtu.be')return u.pathname.slice(1).split('/')[0];if(/(^|\.)youtube\.com$/.test(u.hostname))return u.searchParams.get('v')||u.pathname.match(/\/shorts\/([^/]+)/)?.[1]}catch{}return /^[\w-]{11}$/.test(raw)?raw:null}
+      const YT_API_KEY_STORAGE='pro_mock_youtube_api_key_v1';
+      let selectedStudyPlaylistId=null,playlistVideoFilter='all',playlistVideoOrder='original',playlistVideoSearch='';
+      const ytKeyInput=$('youtubeApiKey');
+      ytKeyInput.value=localStorage.getItem(YT_API_KEY_STORAGE)||'';
+      $('ytShowKey').onclick=()=>{const visible=ytKeyInput.type==='text';ytKeyInput.type=visible?'password':'text';$('ytShowKey').textContent=visible?'Show':'Hide'};
+      $('ytRemoveKey').onclick=()=>{if(!confirm('Remove the locally saved YouTube API key?'))return;localStorage.removeItem(YT_API_KEY_STORAGE);ytKeyInput.value='';$('ytApiStatus').textContent='API key removed. Existing playlists remain available.'};
+      function ytKey(){return (localStorage.getItem(YT_API_KEY_STORAGE)||'').trim()}
+      async function youtubeAPI(resource,params,key=ytKey()){
+        if(!key)throw new Error('Add your YouTube API key in Settings first.');
+        const url=new URL('https://www.googleapis.com/youtube/v3/'+resource);
+        Object.entries(params).forEach(([k,v])=>url.searchParams.set(k,String(v)));
+        url.searchParams.set('key',key);
+        let response;
+        try{response=await fetch(url.toString(),{referrerPolicy:'strict-origin-when-cross-origin'})}catch(e){throw new Error('Network request failed. Check internet access and API key website restrictions.')}
+        let data;try{data=await response.json()}catch{throw new Error('Unexpected response from YouTube.')}
+        if(!response.ok){const reason=data?.error?.errors?.[0]?.reason||'';const msg=data?.error?.message||'YouTube API request failed';if(response.status===403&&/quota/i.test(msg+' '+reason))throw new Error('YouTube API quota exceeded. Try again after the quota resets.');throw new Error(msg)}
+        return data;
+      }
+      $('ytSaveTest').onclick=async()=>{const key=ytKeyInput.value.trim(),status=$('ytApiStatus');if(!key){status.textContent='Paste an API key first.';return}status.textContent='Testing connection…';try{await youtubeAPI('videos',{part:'snippet',id:'jNQXAC9IVRw'},key);localStorage.setItem(YT_API_KEY_STORAGE,key);status.textContent='✓ Connected. Playlist imports are enabled.'}catch(e){status.textContent='Connection failed: '+e.message}};
+      if(ytKey())$('ytApiStatus').textContent='API key saved in this browser. Use Save & Test to verify.';
+      function togglePlaylistForm(force){const form=$('playlistForm');form.hidden=typeof force==='boolean'?!force:!form.hidden;if(!form.hidden)$('playlistUrl').focus()}
+      function playlistNotice(message){$('playlistMessage').textContent=message}
+      function playlistTitle(p){return p.customTitle||p.title||'YouTube Playlist'}
+      function playlistThumbnail(p){const src=p.thumbnail||'';if(/^https:\/\//.test(src)){try{const host=new URL(src).hostname;if(/(^|\.)(ytimg\.com|googleusercontent\.com)$/.test(host))return src}catch(e){}}const id=p.videos?.find(v=>v.id)?.id;return id?'https://i.ytimg.com/vi/'+encodeURIComponent(id)+'/hqdefault.jpg':''}
+      function youtubeDuration(iso){if(!iso)return '';const m=iso.match(/P(?:([0-9]+)D)?T?(?:([0-9]+)H)?(?:([0-9]+)M)?(?:([0-9]+)S)?/);if(!m)return '';const seconds=(+(m[1]||0)*86400)+ (+(m[2]||0)*3600)+(+(m[3]||0)*60)+ +(m[4]||0);return seconds>=3600?`${Math.floor(seconds/3600)}:${String(Math.floor(seconds%3600/60)).padStart(2,'0')}:${String(seconds%60).padStart(2,'0')}`:`${Math.floor(seconds/60)}:${String(seconds%60).padStart(2,'0')}`}
+      async function fetchPlaylistData(id){
+        const info=await youtubeAPI('playlists',{part:'snippet,contentDetails',id});
+        const item=info.items?.[0];if(!item)throw new Error('Playlist not found or not accessible. Check its URL and privacy settings.');
+        const collected=[];let token='',pages=0;
+        do{const args={part:'snippet,contentDetails',playlistId:id,maxResults:50};if(token)args.pageToken=token;
+          const page=await youtubeAPI('playlistItems',args);pages++;
+          for(const entry of page.items||[]){const vid=entry.contentDetails?.videoId||entry.snippet?.resourceId?.videoId;if(!vid||!/^[\w-]{11}$/.test(vid))continue;
+            collected.push({id:vid,title:entry.snippet?.title||'YouTube video',thumbnail:entry.snippet?.thumbnails?.medium?.url||'',unavailable:/^(Private video|Deleted video)$/i.test(entry.snippet?.title||'')});}
+          token=page.nextPageToken||'';
+        }while(token&&pages<500);
+        if(token)throw new Error('Playlist too large to finish importing in one request. No saved data was changed.');
+        const available=collected.filter(v=>!v.unavailable);
+        for(let i=0;i<available.length;i+=50){const batch=available.slice(i,i+50);const details=await youtubeAPI('videos',{part:'contentDetails,snippet',id:batch.map(v=>v.id).join(',')});const byId=new Map((details.items||[]).map(v=>[v.id,v]));batch.forEach(v=>{const data=byId.get(v.id);if(data){v.duration=youtubeDuration(data.contentDetails?.duration);v.title=data.snippet?.title||v.title;v.thumbnail=data.snippet?.thumbnails?.medium?.url||v.thumbnail}})}
+        return {title:item.snippet?.title||'YouTube Playlist',channel:item.snippet?.channelTitle||'',thumbnail:item.snippet?.thumbnails?.high?.url||item.snippet?.thumbnails?.medium?.url||'',videos:collected};
+      }
+      function mergePlaylistData(p,data){const old=new Map((p.videos||[]).map(v=>[v.id,v]));const seen=new Set();const next=data.videos.map(v=>{seen.add(v.id);return {...old.get(v.id),...v,done:!!old.get(v.id)?.done,removedFromYoutube:false}});for(const v of p.videos||[])if(!seen.has(v.id))next.push({...v,removedFromYoutube:true});p.videos=next;p.title=data.title;p.channel=data.channel;p.thumbnail=data.thumbnail;p.lastSynced=new Date().toISOString()}
+      async function refreshStudyPlaylist(id){const p=studyPlaylists.find(x=>x.id===id);if(!p)return;playlistNotice('Refreshing '+playlistTitle(p)+'…');try{const data=await fetchPlaylistData(id);mergePlaylistData(p,data);await saveExtras();renderPlaylists();playlistNotice('Playlist updated. Existing completion progress was preserved.')}catch(e){playlistNotice('Refresh failed: '+e.message)}}
+      $('playlistForm').addEventListener('submit',async e=>{e.preventDefault();const url=$('playlistUrl').value.trim(),id=playlistId(url);if(!id){playlistNotice('Enter a valid YouTube playlist URL.');return}if(!playlistStorageReady){playlistNotice('Loading saved playlists. Please try again shortly.');return}if(studyPlaylists.some(p=>p.id===id)){playlistNotice('This playlist is already in your library.');return}if(!ytKey()){playlistNotice('Set and test your YouTube API key in Settings before importing.');return}
+        const submit=$('playlistForm').querySelector('[type=submit]');submit.disabled=true;playlistNotice('Importing playlist and all available videos…');try{const data=await fetchPlaylistData(id);studyPlaylists.push({id,url,...data,customTitle:$('playlistTitle').value.trim(),lastSynced:new Date().toISOString()});await saveExtras();localStorage.removeItem(PLAYLISTS_KEY);$('playlistForm').reset();togglePlaylistForm(false);renderPlaylists();playlistNotice('Imported '+data.videos.length+' videos.')}catch(err){playlistNotice('Import failed: '+err.message)}finally{submit.disabled=false}});
+      function playlistMenu(p){const menu=document.createElement('div');menu.className='playlist-menu';const toggle=document.createElement('button');toggle.type='button';toggle.className='mini-icon';toggle.textContent='⋯';toggle.title='Playlist options';toggle.setAttribute('aria-label','Playlist options');const options=document.createElement('div');options.className='playlist-menu-items';options.hidden=true;toggle.onclick=e=>{e.stopPropagation();const opening=options.hidden;document.querySelectorAll('.playlist-menu-items').forEach(m=>{m.hidden=true;if(m.dataset.portaled==='1'){m.dataset.portaled='0';m.remove()}});if(!opening)return;document.body.appendChild(options);options.dataset.portaled='1';options.hidden=false;options.style.position='fixed';options.style.zIndex='100000';const rect=toggle.getBoundingClientRect();const width=Math.max(185,options.offsetWidth);const left=Math.max(8,Math.min(rect.right-width,window.innerWidth-width-8));const height=options.offsetHeight;const top=rect.bottom+height+8<=window.innerHeight?rect.bottom+5:Math.max(8,rect.top-height-5);options.style.left=left+'px';options.style.right='auto';options.style.top=top+'px';};
+        [['Rename',()=>{const value=prompt('Custom playlist name (leave blank to use the YouTube title):',p.customTitle||'');if(value===null)return;p.customTitle=value.trim();saveExtras();renderPlaylists()}],['Refresh from YouTube',()=>refreshStudyPlaylist(p.id)],['Delete playlist',()=>{if(confirm('Delete this playlist and its saved completion progress?')){studyPlaylists=studyPlaylists.filter(x=>x.id!==p.id);selectedStudyPlaylistId=null;saveExtras();renderPlaylists()}}]].forEach(([name,fn])=>{const b=document.createElement('button');b.type='button';b.textContent=name;b.onclick=e=>{e.stopPropagation();options.hidden=true;fn()};options.append(b)});menu.append(toggle,options);return menu}
+      function renderPlaylists(){const el=$('playlistList');if(!el)return;el.innerHTML='';const detail=!!selectedStudyPlaylistId&&studyPlaylists.some(p=>p.id===selectedStudyPlaylistId);$('playlistAddBtn').hidden=detail;$('playlistBreadcrumb').textContent='';if(!detail){const library=document.createElement('div');library.className='study-library-v10';if(!studyPlaylists.length)library.innerHTML='<div class="extra-help">No playlists yet. Choose Add Playlist and paste a YouTube playlist URL.</div>';
+        studyPlaylists.forEach(p=>{const videos=Array.isArray(p.videos)?p.videos:[],complete=videos.filter(v=>v.done).length,percent=videos.length?Math.round(100*complete/videos.length):0;const card=document.createElement('div');card.className='study-library-card';const thumb=playlistThumbnail(p);card.innerHTML=`<button class="study-library-open" type="button"><div class="study-library-cover">${thumb?`<img src="${esc(thumb)}" loading="lazy" alt="Playlist thumbnail">`:'<span>▶</span>'}</div><div class="study-library-title">${esc(playlistTitle(p))}</div><div class="study-library-channel">${esc(p.channel||'YouTube')}</div></button><div class="study-card-footer"><span>${videos.length} videos · ${complete} completed</span><span>${percent}%</span></div><div class="extra-progress"><div style="width:${percent}%"></div></div>`;card.querySelector('.study-library-open').onclick=()=>{selectedStudyPlaylistId=p.id;playlistVideoSearch='';playlistVideoFilter='all';playlistVideoOrder='original';renderPlaylists()};const actions=document.createElement('div');actions.className='study-card-menu';actions.append(playlistMenu(p));card.append(actions);library.append(card)});el.append(library);return}
+        $('playlistForm').hidden=true;const p=studyPlaylists.find(x=>x.id===selectedStudyPlaylistId),videos=Array.isArray(p.videos)?p.videos:[];const complete=videos.filter(v=>v.done).length;const shell=document.createElement('div');shell.className='study-detail-v10';const back=document.createElement('button');back.type='button';back.className='study-back';back.textContent='← Back to Playlists';back.onclick=()=>{selectedStudyPlaylistId=null;playlistNotice('');renderPlaylists()};el.append(back);const left=document.createElement('aside');left.className='study-detail-left';const thumb=playlistThumbnail(p);left.innerHTML=`<div class="study-detail-cover">${thumb?`<img src="${esc(thumb)}" alt="Playlist thumbnail">`:'▶'}</div><h3>${esc(playlistTitle(p))}</h3><div class="study-detail-channel">${esc(p.channel||'YouTube')}</div><div class="study-detail-count" data-progress-count>${complete} of ${videos.length} completed</div><div class="extra-progress"><div data-progress-fill style="width:${videos.length?100*complete/videos.length:0}%"></div></div><div class="study-detail-percent" data-progress-percent>${videos.length?Math.round(100*complete/videos.length):0}% completed</div>`;const continueBtn=document.createElement('button');continueBtn.type='button';continueBtn.className='btn study-continue';continueBtn.textContent='▶ Continue Studying';continueBtn.onclick=()=>{const v=videos.find(x=>!x.done&&!x.unavailable&&!x.removedFromYoutube);if(!v){playlistNotice('All available videos are completed.');return}window.open('https://www.youtube.com/watch?v='+encodeURIComponent(v.id)+'&list='+encodeURIComponent(p.id),'_blank','noopener,noreferrer')};left.append(continueBtn,playlistMenu(p));const right=document.createElement('section');right.className='study-detail-right';right.innerHTML=`<div class="study-video-top"><strong>Videos (${videos.length})</strong><input type="search" id="studyVideoSearch" placeholder="Search videos…" aria-label="Search videos"></div><div class="study-video-controls"><select id="studyVideoOrder" aria-label="Video order"><option value="original">Original order</option><option value="reverse">Reverse order</option></select><select id="studyVideoFilter" aria-label="Completion filter"><option value="all">All videos</option><option value="pending">Pending</option><option value="completed">Completed</option></select></div><div class="study-viewer-videos" id="studyDetailVideos"></div>`;shell.append(left,right);el.append(shell);const search=right.querySelector('#studyVideoSearch'),order=right.querySelector('#studyVideoOrder'),filter=right.querySelector('#studyVideoFilter');search.value=playlistVideoSearch;order.value=playlistVideoOrder;filter.value=playlistVideoFilter;
+        const updateProgress=()=>{const n=videos.filter(v=>v.done).length;left.querySelector('[data-progress-count]').textContent=n+' of '+videos.length+' completed';left.querySelector('[data-progress-fill]').style.width=(videos.length?100*n/videos.length:0)+'%';left.querySelector('[data-progress-percent]').textContent=(videos.length?Math.round(100*n/videos.length):0)+'% completed'};
+        function drawVideos(){const list=right.querySelector('#studyDetailVideos');list.innerHTML='';let matches=videos.map((v,i)=>({v,i})).filter(({v})=>(playlistVideoFilter==='all'||(playlistVideoFilter==='completed'?v.done:!v.done))&&(!playlistVideoSearch||String(v.title||'').toLowerCase().includes(playlistVideoSearch.toLowerCase())));if(playlistVideoOrder==='reverse')matches.reverse();for(const {v,i} of matches){const row=document.createElement('div');row.className='study-video-card'+(v.done?' is-complete':'');const link=document.createElement('a');link.className='study-video-link';link.href='https://www.youtube.com/watch?v='+encodeURIComponent(v.id)+'&list='+encodeURIComponent(p.id);link.target='_blank';link.rel='noopener noreferrer';const img=document.createElement('img');img.loading='lazy';img.alt='';img.src=v.thumbnail||'https://i.ytimg.com/vi/'+encodeURIComponent(v.id)+'/mqdefault.jpg';const info=document.createElement('div');info.className='study-video-detail';const name=document.createElement('div');name.className='study-video-title';name.textContent=(i+1)+'. '+(v.title||'YouTube video');const meta=document.createElement('div');meta.className='study-video-channel';meta.textContent=[v.duration,v.removedFromYoutube?'Removed from playlist':v.unavailable?'Unavailable':''].filter(Boolean).join(' · ');info.append(name,meta);link.append(img,info);const check=document.createElement('input');check.type='checkbox';check.className='study-complete';check.checked=!!v.done;check.setAttribute('aria-label','Mark '+(v.title||'video')+' completed');check.onchange=()=>{v.done=check.checked;saveExtras();updateProgress();if(playlistVideoFilter!=='all')drawVideos();else row.classList.toggle('is-complete',v.done)};row.append(link,check);list.append(row)}if(!matches.length)list.innerHTML='<div class="extra-help">No videos match your search or filter.</div>'}
+        search.oninput=()=>{playlistVideoSearch=search.value;drawVideos()};order.onchange=()=>{playlistVideoOrder=order.value;drawVideos()};filter.onchange=()=>{playlistVideoFilter=filter.value;drawVideos()};drawVideos();}
+      // New comprehensive backup, with backwards compatibility for old mock-only arrays.
+      window.exportJSON=()=>{const bundle={format:'pro-mock-analyser-backup',version:2,exportedAt:new Date().toISOString(),mocks:db,examConfig:EXAM_CONFIG,providers,examDates,studyPlaylists,preferences:{}};for(let i=0;i<localStorage.length;i++){const key=localStorage.key(i);if(key?.startsWith('ssc')&&!/api.key|gemini/i.test(key))bundle.preferences[key]=localStorage.getItem(key)}const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify(bundle,null,2)],{type:'application/json'}));a.download='pro_mock_full_backup.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)};
+      window.importJSON=e=>{const file=e.target.files?.[0];if(!file)return;const r=new FileReader();r.onload=async ev=>{try{const obj=JSON.parse(ev.target.result);if(Array.isArray(obj)){if(!confirm('Replace existing mock history with this legacy backup?'))return;db=obj;localStorage.setItem('sscScores_Analytics',JSON.stringify(db));updateDashboard();alert('Legacy mock history restored.')}else if(obj?.format==='pro-mock-analyser-backup'&&Array.isArray(obj.mocks)&&Array.isArray(obj.examDates)&&Array.isArray(obj.studyPlaylists)){if(!confirm('Restore this full backup? Existing app data will be replaced.'))return;db=obj.mocks;examDates=obj.examDates;studyPlaylists=obj.studyPlaylists;localStorage.setItem('sscScores_Analytics',JSON.stringify(db));if(obj.examConfig&&typeof obj.examConfig==='object'&&!Array.isArray(obj.examConfig)){EXAM_CONFIG=obj.examConfig;localStorage.setItem('ssc_exam_config',JSON.stringify(EXAM_CONFIG))}if(Array.isArray(obj.providers)){providers=obj.providers;localStorage.setItem('sscProviders',JSON.stringify(providers))}if(obj.preferences&&typeof obj.preferences==='object')for(const [k,v]of Object.entries(obj.preferences)){if(k.startsWith('ssc')&&typeof v==='string'&&!/api.key|gemini/i.test(k))localStorage.setItem(k,v)}await saveExtras();location.reload()}else alert('Unrecognized backup format. No data changed.')}catch(err){alert('Invalid backup file: '+err.message)}finally{e.target.value=''}};r.readAsText(file)};
+      renderCountdown();renderPlaylists();setInterval(renderCountdown,60000);
+
+      updateDashboard();
+
+      // Sidebar routing. Move the original DOM cards, never clone them: this
+      // preserves form listeners, data, chart canvases and existing IDs.
+      (function initSidebarViews(){
+        const old=document.querySelector('body > .container');
+        const analytics=old.querySelector('.main-content');
+        const side=old.querySelector('.sidebar');
+        const cards=[...side.children].filter(el=>el.classList.contains('card'));
+        const add=cards.find(el=>el.querySelector('#scoreFormWrapper'));
+        const countdown=cards.find(el=>el.querySelector('#countdownBody'));
+        const playlists=cards.find(el=>el.querySelector('#playlistsBody'));
+        const history=cards.find(el=>el.querySelector('#historyList'));
+        const settings=cards.find(el=>el.querySelector('#settingsContainer'));
+        const routes=[['analytics','▥','Analytics',analytics],['add','＋','Add Mock',add],['countdown','◷','Exam Countdown',countdown],['playlists','▶','Study Playlists',playlists],['history','▤','Mock History',history],['settings','⚙','Settings',settings]];
+        const shell=document.createElement('div');shell.className='app-shell';
+        const nav=document.createElement('nav');nav.className='app-nav';nav.setAttribute('aria-label','Main navigation');
+        const navPaths={analytics:'<rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="9" width="7" height="12" rx="1"/>',add:'<circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>',countdown:'<circle cx="12" cy="12" r="9"/><path d="M12 6v6l4 2"/>',playlists:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="m10 8 6 4-6 4z"/>',history:'<path d="M3 12a9 9 0 1 0 3-7M3 4v5h5M12 7v5l3 2"/>',settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M2 12h3M19 12h3M4.9 19.1 7 17M17 7l2.1-2.1"/>'};
+        const brand=document.createElement('div');brand.className='nav-brand';brand.innerHTML='<div class="nav-brand-mark"><div class="nav-brand-name">✦ ADVANCE ANALYZER</div><div class="nav-brand-sub">Your study workspace</div></div>';
+        const collapse=document.createElement('button');collapse.type='button';collapse.className='nav-collapse';collapse.setAttribute('aria-label','Collapse sidebar');collapse.title='Toggle sidebar';collapse.textContent='☰';
+        function setNavCompact(on){shell.classList.toggle('nav-compact',on);collapse.setAttribute('aria-label',on?'Expand sidebar':'Collapse sidebar');collapse.title=on?'Expand sidebar':'Collapse sidebar';try{localStorage.setItem('advance_analyzer_sidebar_compact',on?'1':'0')}catch(e){}}
+        collapse.onclick=()=>setNavCompact(!shell.classList.contains('nav-compact'));brand.append(collapse);nav.append(brand);
+        try{setNavCompact(localStorage.getItem('advance_analyzer_sidebar_compact')==='1')}catch(e){}
+        const content=document.createElement('main');content.className='app-content';
+        const views={};
+        for(const [id,icon,label,node] of routes){
+          if(!node)continue;
+          const btn=document.createElement('button');btn.type='button';btn.dataset.route=id;btn.innerHTML='<span class="nav-ico" aria-hidden="true"><svg viewBox="0 0 24 24">'+navPaths[id]+'</svg></span><span class="nav-label">'+label+'</span>';btn.title=label;btn.setAttribute('aria-label',label);btn.onclick=()=>navigateTo(id);nav.append(btn);
+          const view=document.createElement('section');view.className='app-view';view.dataset.view=id;
+          if(id!=='analytics'){if(!['countdown','playlists','history'].includes(id)){const heading=document.createElement('div');heading.className='app-view-heading';heading.textContent=label;view.append(heading)}}
+          view.append(node);content.append(view);views[id]=view;
+        }
+        shell.append(nav,content);old.before(shell);document.body.classList.add('nav-layout');
+        // Keep the original accordion state untouched but show the contents
+        // whenever their dedicated route is selected.
+        function navigateTo(id){
+          if(!views[id])id='analytics';
+          Object.entries(views).forEach(([key,view])=>view.classList.toggle('active',key===id));
+          nav.querySelectorAll('button').forEach(b=>{b.classList.toggle('active',b.dataset.route===id);b.setAttribute('aria-current',b.dataset.route===id?'page':'false')});
+          try{localStorage.setItem('pro_mock_active_view',id)}catch(e){}
+          if(id==='analytics'){requestAnimationFrame(()=>{if(typeof updateDashboard==='function')updateDashboard()})}
+          if(id==='settings'){const c=document.getElementById('settingsContainer');if(c)c.style.display='block'}
+          if(id==='add'){const c=document.getElementById('scoreFormWrapper');if(c)c.style.display='block'}
+          if(id==='countdown'||id==='playlists'){const body=document.getElementById(id==='countdown'?'countdownBody':'playlistsBody');if(body)body.hidden=false}
+        }
+        window.navigateTo=navigateTo;
+        let initial='analytics';try{initial=localStorage.getItem('pro_mock_active_view')||'analytics'}catch(e){}
+        navigateTo(initial);
+      })();
+
+      // Advance Analyzer V1: preferences and presentation, isolated from V12 records.
+      (function initAdvanceAnalyzer(){
+        const root=document.documentElement;
+        const read=(k,f)=>{try{return localStorage.getItem(k)||f}catch(e){return f}};
+        const store=(k,v)=>{try{localStorage.setItem(k,v)}catch(e){}};
+        const themeNames={arctic:'Arctic Light',midnight:'Midnight Blue',aurora:'Aurora Purple'};
+        function applyPremiumTheme(name){if(!themeNames[name])name='midnight';root.setAttribute('data-premium-theme',name);root.setAttribute('data-theme',name==='arctic'?'light':'dark');store('advance_analyzer_premium_theme',name);store('ssc_theme',name==='arctic'?'light':'dark');if(typeof Chart!=='undefined')Chart.defaults.color=name==='arctic'?'#64748b':'#a2b1c7';const t=document.getElementById('themeToggleBtn');if(t)t.textContent=name==='arctic'?'🌙':'🌞';if(typeof updateDashboard==='function')updateDashboard()}
+        const colors={cyan:'#38bdf8',violet:'#a78bfa',emerald:'#10b981',orange:'#fb923c'};
+        function applyColor(name){const hex=colors[name]||colors.cyan;root.style.setProperty('--accent',hex);store('advance_analyzer_accent',name);store('ssc_custom_accent',hex);if(typeof updateDashboard==='function')updateDashboard()}
+        const oldTheme=read('ssc_theme','dark');applyPremiumTheme(read('advance_analyzer_premium_theme',oldTheme==='light'?'arctic':'midnight'));
+        applyColor(read('advance_analyzer_accent','cyan'));
+        const settings=document.getElementById('settingsContainer');
+        if(settings){
+          const panel=document.createElement('div');panel.className='aa-panel';panel.innerHTML='<h3>✦ Appearance & Sidebar</h3><div class="aa-options"><label for="aaTheme">Dashboard theme</label><select id="aaTheme"><option value="arctic">Arctic Light</option><option value="midnight">Midnight Blue</option><option value="aurora">Aurora Purple</option></select></div><p>Accent colour</p><div class="aa-options" id="aaColors"></div><p>Sidebar mode is remembered automatically. Use the ☰ button in the sidebar to collapse or expand it. Animations respect your device’s reduced-motion setting.</p>';
+          settings.prepend(panel);
+          const select=panel.querySelector('#aaTheme');select.value=read('advance_analyzer_premium_theme','midnight');select.onchange=()=>applyPremiumTheme(select.value);
+          const colorsEl=panel.querySelector('#aaColors');for(const [name,hex] of Object.entries(colors)){const btn=document.createElement('button');btn.type='button';btn.className='aa-color';btn.style.background=hex;btn.title=name;btn.setAttribute('aria-label',name+' accent');btn.onclick=()=>{applyColor(name);colorsEl.querySelectorAll('button').forEach(x=>x.setAttribute('aria-pressed',String(x===btn)))};btn.setAttribute('aria-pressed',String(name===read('advance_analyzer_accent','cyan')));colorsEl.append(btn)}
+          const headings=[['YouTube Integration','.yt-settings'],['Data Management','#importFile']];headings.forEach(([name,selector])=>{const el=settings.querySelector(selector);if(el){const title=document.createElement('h3');title.className='aa-section-title';title.textContent=name;el.before(title)}});
+        }
+        // Keep the existing header toggle consistent with the three-theme selector.
+        window.toggleTheme=function(){const current=read('advance_analyzer_premium_theme','midnight');applyPremiumTheme(current==='arctic'?'midnight':'arctic');const sel=document.getElementById('aaTheme');if(sel)sel.value=read('advance_analyzer_premium_theme','midnight')};
+        const history=document.getElementById('historyList');
+        if(history){const search=document.createElement('input');search.type='search';search.className='aa-history-search';search.placeholder='Search mock names or providers…';search.setAttribute('aria-label','Search mock history');history.before(search);search.addEventListener('input',()=>{const q=search.value.trim().toLowerCase();history.querySelectorAll('.hist-item').forEach(row=>{row.hidden=!!q&&!row.textContent.toLowerCase().includes(q)})});const obs=new MutationObserver(()=>{const q=search.value.trim().toLowerCase();history.querySelectorAll('.hist-item').forEach(row=>{row.hidden=!!q&&!row.textContent.toLowerCase().includes(q)})});obs.observe(history,{childList:true})}
+        const add=document.getElementById('scoreFormWrapper');
+        if(add){let dirty=false;add.addEventListener('input',e=>{if(e.target.matches('input,select,textarea'))dirty=true});add.addEventListener('submit',()=>{dirty=false;showToast('Mock saved')});const form=add.querySelector('form');if(form)form.addEventListener('reset',()=>{dirty=false});const oldNavigate=window.navigateTo;if(oldNavigate){window.navigateTo=function(id){const current=document.querySelector('.app-view.active')?.dataset.view;if(current==='add'&&id!=='add'&&dirty){if(!confirm('You have unsaved mock inputs. Leave Add Mock?'))return;dirty=false}oldNavigate(id)}}}
+        function showToast(msg){const old=document.querySelector('.aa-toast');if(old)old.remove();const el=document.createElement('div');el.className='aa-toast';el.setAttribute('role','status');el.textContent=msg;document.body.append(el);setTimeout(()=>el.remove(),2400)}
+        // Refresh the selected theme after settings changes from legacy controls.
+        document.addEventListener('click',e=>{if(e.target?.id==='themeToggleBtn'){setTimeout(()=>{const current=root.getAttribute('data-theme');const name=current==='light'?'arctic':'midnight';root.setAttribute('data-premium-theme',name);store('advance_analyzer_premium_theme',name);const sel=document.getElementById('aaTheme');if(sel)sel.value=name},0)}});
+      })();
+    </script>
+  
+<script>
+/* V2: close floating playlist menus when clicking outside or scrolling. */
+document.addEventListener('click',function(e){
+  document.querySelectorAll('body > .playlist-menu-items[data-portaled="1"]').forEach(function(menu){
+    if(!menu.contains(e.target)){menu.hidden=true;menu.dataset.portaled='0';menu.remove();}
+  });
+});
+window.addEventListener('scroll',function(){document.querySelectorAll('body > .playlist-menu-items[data-portaled="1"]').forEach(function(menu){menu.hidden=true;menu.dataset.portaled='0';menu.remove()})},true);
+</script>
+<div id="pwaNetwork" aria-live="polite" style="position:fixed;bottom:10px;right:12px;z-index:9000;font:12px system-ui,sans-serif;padding:5px 9px;border-radius:20px;background:rgba(15,23,42,.88);color:white;box-shadow:0 3px 14px #0003;pointer-events:none;display:none">Offline · Saved data available</div>
+<script>(function(){const el=document.getElementById('pwaNetwork');function update(){el.style.display=navigator.onLine?'none':'block'}window.addEventListener('online',update);window.addEventListener('offline',update);update()})();</script>
+</body>
+</html>
